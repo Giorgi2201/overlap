@@ -1,0 +1,35 @@
+/* Overlap design tokens — the only color/type source of truth. */
+
+:root {
+  /* Palette */
+  --void: #0b0e16;
+  --glass: #151a26;
+  --signal: #4de8d0;
+  --beacon: #f2b84b;
+  --dead: #7a5c7e;
+  --text: #e8ecf1;
+  --muted: #8b93a3;
+
+  /* Derived surfaces / glows (still from the palette) */
+  --glass-fill: color-mix(in srgb, var(--glass) 78%, transparent);
+  --glass-border: color-mix(in srgb, var(--signal) 28%, transparent);
+  --signal-glow: color-mix(in srgb, var(--signal) 45%, transparent);
+  --beacon-glow: color-mix(in srgb, var(--beacon) 40%, transparent);
+  --dead-fill: color-mix(in srgb, var(--dead) 35%, transparent);
+  --void-elevated: color-mix(in srgb, var(--void) 70%, var(--glass));
+
+  /* Type */
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* Motion */
+  --ease-circuit: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-circuit: 520ms;
+  --dur-soft: 220ms;
+
+  /* Layout */
+  --radius-card: 18px;
+  --radius-node: 999px;
+  --space: 1rem;
+}

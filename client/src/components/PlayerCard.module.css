@@ -1,0 +1,141 @@
+.card {
+  position: relative;
+  width: min(100%, 220px);
+  border-radius: var(--radius-card);
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--signal) 8%, transparent),
+    0 18px 40px color-mix(in srgb, var(--void) 65%, transparent);
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.start {
+  box-shadow:
+    0 0 24px var(--signal-glow),
+    0 18px 40px color-mix(in srgb, var(--void) 65%, transparent);
+}
+
+.target {
+  border-color: color-mix(in srgb, var(--beacon) 35%, transparent);
+  box-shadow:
+    0 0 22px var(--beacon-glow),
+    0 18px 40px color-mix(in srgb, var(--void) 65%, transparent);
+}
+
+.active {
+  border-color: color-mix(in srgb, var(--signal) 55%, transparent);
+}
+
+.won {
+  border-color: color-mix(in srgb, var(--beacon) 70%, transparent);
+  box-shadow:
+    0 0 36px var(--beacon-glow),
+    0 0 80px color-mix(in srgb, var(--beacon) 25%, transparent),
+    0 18px 40px color-mix(in srgb, var(--void) 65%, transparent);
+  animation: beaconPulse 1.6s var(--ease-circuit) infinite;
+}
+
+.interactive {
+  cursor: pointer;
+}
+
+.hit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 1.15rem 1.2rem 1.25rem;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: inherit;
+}
+
+.hit:disabled {
+  cursor: default;
+}
+
+.role {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.start .role {
+  color: var(--signal);
+}
+
+.target .role {
+  color: var(--beacon);
+}
+
+.name {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+
+.meta {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.club {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin-top: 0.15rem;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  line-height: 1.25;
+  color: color-mix(in srgb, var(--text) 78%, var(--muted));
+  word-break: break-word;
+}
+
+.hint {
+  margin-top: 0.45rem;
+  font-size: 0.75rem;
+  color: color-mix(in srgb, var(--signal) 75%, var(--muted));
+}
+
+@keyframes beaconPulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 28px var(--beacon-glow),
+      0 0 60px color-mix(in srgb, var(--beacon) 18%, transparent),
+      0 18px 40px color-mix(in srgb, var(--void) 65%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 42px var(--beacon-glow),
+      0 0 90px color-mix(in srgb, var(--beacon) 32%, transparent),
+      0 18px 40px color-mix(in srgb, var(--void) 65%, transparent);
+  }
+}
+
+@media (max-width: 720px) {
+  .card {
+    width: 100%;
+  }
+
+  .name {
+    font-size: 1.1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .won {
+    animation: none;
+  }
+}

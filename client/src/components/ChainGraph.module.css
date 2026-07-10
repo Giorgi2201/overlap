@@ -1,0 +1,219 @@
+.wrap {
+  width: 100%;
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.prompt {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+  scrollbar-color: color-mix(in srgb, var(--signal) 35%, transparent) transparent;
+  scrollbar-width: thin;
+}
+
+.scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--signal) 35%, transparent);
+  border-radius: 999px;
+}
+
+.canvas {
+  position: relative;
+  min-height: 150px;
+}
+
+.svg {
+  display: block;
+  overflow: visible;
+}
+
+.edge {
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  opacity: 0.95;
+}
+
+.edgeDraw {
+  stroke-dashoffset: 1;
+  animation: circuitDraw var(--dur-circuit) var(--ease-circuit) forwards;
+}
+
+.edgeWin {
+  stroke: var(--beacon);
+  filter: drop-shadow(0 0 6px var(--beacon-glow));
+}
+
+.spoke {
+  stroke: color-mix(in srgb, var(--signal) 28%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+  pointer-events: none;
+}
+
+.spokeDead {
+  stroke: color-mix(in srgb, var(--dead) 35%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 2 5;
+  pointer-events: none;
+}
+
+.node {
+  fill: var(--glass-fill);
+  stroke: var(--glass-border);
+  stroke-width: 1.5;
+}
+
+.nodePlayer {
+  stroke: color-mix(in srgb, var(--signal) 55%, transparent);
+  filter: drop-shadow(0 0 8px var(--signal-glow));
+}
+
+.nodeClub {
+  stroke: color-mix(in srgb, var(--muted) 50%, transparent);
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--muted) 25%, transparent));
+}
+
+.nodeActive {
+  stroke: var(--signal);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 14px var(--signal-glow));
+}
+
+.chainLabel {
+  position: absolute;
+  transform: translateX(-50%);
+  /* ~164px: 2-line wrap covers p90 (34 chars) at 0.72rem without crushing neighbors */
+  width: 10.25rem;
+  max-width: 10.25rem;
+  pointer-events: auto;
+  text-align: center;
+  z-index: 1;
+}
+
+.chainLabelText {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--text);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.satellite {
+  fill: color-mix(in srgb, var(--glass) 85%, transparent);
+  stroke: color-mix(in srgb, var(--signal) 40%, transparent);
+  stroke-width: 1.5;
+  cursor: pointer;
+  transition:
+    fill var(--dur-soft) ease,
+    stroke var(--dur-soft) ease,
+    filter var(--dur-soft) ease;
+}
+
+.satellite:hover {
+  fill: color-mix(in srgb, var(--signal) 18%, var(--glass));
+  stroke: var(--signal);
+  filter: drop-shadow(0 0 10px var(--signal-glow));
+}
+
+.satClub {
+  stroke: color-mix(in srgb, var(--muted) 45%, transparent);
+}
+
+.satDead {
+  fill: var(--dead-fill);
+  stroke: color-mix(in srgb, var(--dead) 55%, transparent);
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: none;
+}
+
+.satDead:hover {
+  fill: var(--dead-fill);
+  stroke: color-mix(in srgb, var(--dead) 55%, transparent);
+  filter: none;
+}
+
+.satLabelWrap {
+  position: absolute;
+  transform: translateX(-50%);
+  width: 8.75rem; /* ~140px, matches SAT_COL_W */
+  max-width: 8.75rem;
+  pointer-events: none;
+  text-align: center;
+  z-index: 1;
+}
+
+.satLabelWrapDead {
+  opacity: 0.75;
+}
+
+.satLabelText {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-family: var(--font-body);
+  font-size: 0.68rem;
+  line-height: 1.2;
+  color: var(--text);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.deadTag {
+  display: block;
+  margin-top: 0.15rem;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dead);
+}
+
+@keyframes circuitDraw {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 0.4;
+  }
+  60% {
+    opacity: 1;
+    filter: drop-shadow(0 0 8px var(--signal-glow));
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0.95;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edgeDraw {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
+  .scroll {
+    scroll-behavior: auto;
+  }
+}
