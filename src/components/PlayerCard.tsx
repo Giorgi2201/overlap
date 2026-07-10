@@ -11,6 +11,8 @@ interface PlayerCardProps {
   won?: boolean;
   onClick?: () => void;
   disabled?: boolean;
+  /** Tighter card for the fixed-viewport game board. */
+  compact?: boolean;
 }
 
 export function PlayerCard({
@@ -22,8 +24,9 @@ export function PlayerCard({
   won = false,
   onClick,
   disabled = false,
+  compact = false,
 }: PlayerCardProps) {
-  const tilt = useTilt(7);
+  const tilt = useTilt(compact ? 4 : 7);
   const interactive = Boolean(onClick) && !disabled;
 
   return (
@@ -31,6 +34,7 @@ export function PlayerCard({
       ref={tilt.ref}
       className={[
         styles.card,
+        compact ? styles.compact : "",
         role === "target" ? styles.target : styles.start,
         active ? styles.active : "",
         won ? styles.won : "",
@@ -50,7 +54,9 @@ export function PlayerCard({
         aria-label={`${role === "start" ? "Start" : "Target"}: ${name}${club ? `, ${club}` : ""}`}
       >
         <span className={styles.role}>{role === "start" ? "Start" : "Target"}</span>
-        <span className={styles.name}>{name}</span>
+        <span className={styles.name} title={name}>
+          {name}
+        </span>
         {position ? <span className={styles.meta}>{position}</span> : null}
         {club ? (
           <span className={styles.club} title={club}>
@@ -58,7 +64,7 @@ export function PlayerCard({
           </span>
         ) : null}
         {interactive ? (
-          <span className={styles.hint}>Tap to open affiliations</span>
+          <span className={styles.hint}>Tap to open</span>
         ) : null}
       </button>
     </div>

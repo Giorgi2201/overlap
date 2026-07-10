@@ -13,6 +13,25 @@
   will-change: transform;
 }
 
+.compact {
+  width: 100%;
+  max-width: 200px;
+}
+
+.compact .hit {
+  gap: 0.2rem;
+  padding: 0.75rem 0.85rem 0.8rem;
+}
+
+.compact .name {
+  font-size: 1.05rem;
+}
+
+.compact .hint {
+  margin-top: 0.25rem;
+  font-size: 0.7rem;
+}
+
 .start {
   box-shadow:
     0 0 24px var(--signal-glow),

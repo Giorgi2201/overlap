@@ -1,0 +1,355 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-height: 0;
+  height: 100%;
+  padding: 0.55rem 0.65rem 0.65rem;
+}
+
+.prompt {
+  margin: 0;
+  flex-shrink: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ---- Breadcrumb: wrap, never scroll ---- */
+
+.breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.28rem 0.1rem;
+  flex-shrink: 0;
+  padding: 0.1rem 0.05rem;
+}
+
+.crumbItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  max-width: 100%;
+}
+
+.chevron {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
+  line-height: 1;
+  padding: 0 0.1rem;
+  user-select: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  max-width: 8.5rem;
+  padding: 0.22rem 0.45rem 0.22rem 0.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-fill);
+  pointer-events: none; /* read-only history */
+}
+
+.chipPlayer {
+  border-color: color-mix(in srgb, var(--signal) 40%, transparent);
+}
+
+.chipClub {
+  border-color: color-mix(in srgb, var(--muted) 45%, transparent);
+  border-radius: 999px;
+}
+
+.chipNational {
+  border-color: color-mix(in srgb, var(--beacon) 55%, transparent);
+  background: color-mix(in srgb, var(--beacon) 8%, var(--glass-fill));
+  border-radius: 10px;
+}
+
+.chipActive {
+  border-color: var(--signal);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--signal) 28%, transparent);
+}
+
+.chipNational.chipActive {
+  border-color: var(--beacon);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--beacon) 28%, transparent);
+}
+
+.chipBody {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  gap: 0.05rem;
+}
+
+.chipName {
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.15;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 6.75rem;
+}
+
+.chipMeta {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--beacon) 85%, var(--muted));
+}
+
+.chipYears {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: var(--muted);
+}
+
+.markPlayer,
+.markClub,
+.markNational {
+  flex-shrink: 0;
+}
+
+.markPlayer {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--signal) 70%, transparent);
+  box-shadow: 0 0 6px var(--signal-glow);
+}
+
+.markClub {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  border: 1.5px solid color-mix(in srgb, var(--muted) 65%, transparent);
+  background: transparent;
+}
+
+.markNational {
+  width: 0.5rem;
+  height: 0.5rem;
+  background: color-mix(in srgb, var(--beacon) 75%, transparent);
+  transform: rotate(45deg);
+  border-radius: 1.5px;
+  box-shadow: 0 0 6px var(--beacon-glow);
+}
+
+/* ---- Options: internal scroll only ---- */
+
+.optionsRegion {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.searchBar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--signal) 28%, transparent);
+  background: color-mix(in srgb, var(--void) 55%, var(--glass));
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+}
+
+.searchInput::placeholder {
+  color: color-mix(in srgb, var(--muted) 85%, transparent);
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--signal) 55%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--signal) 18%, transparent);
+}
+
+.searchCount {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.emptyHint {
+  margin: auto;
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.optionsScroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding-right: 0.15rem;
+  scrollbar-color: color-mix(in srgb, var(--signal) 35%, transparent) transparent;
+  scrollbar-width: thin;
+}
+
+.optionsScroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.optionsScroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--signal) 35%, transparent);
+  border-radius: 999px;
+}
+
+.optionsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  align-content: start;
+}
+
+.optionCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  min-height: 3.4rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--signal) 22%, transparent);
+  background: color-mix(in srgb, var(--glass) 88%, transparent);
+  text-align: left;
+  color: inherit;
+  transition:
+    border-color var(--dur-soft) ease,
+    background var(--dur-soft) ease,
+    box-shadow var(--dur-soft) ease;
+}
+
+.optionCard:hover:not(:disabled) {
+  border-color: var(--signal);
+  background: color-mix(in srgb, var(--signal) 12%, var(--glass));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--signal) 18%, transparent);
+}
+
+.optionCard:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+.optionClub {
+  border-color: color-mix(in srgb, var(--muted) 40%, transparent);
+}
+
+.optionNational {
+  border-color: color-mix(in srgb, var(--beacon) 45%, transparent);
+  background: color-mix(in srgb, var(--beacon) 7%, var(--glass));
+}
+
+.optionNational:hover:not(:disabled) {
+  border-color: var(--beacon);
+  background: color-mix(in srgb, var(--beacon) 14%, var(--glass));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--beacon) 20%, transparent);
+}
+
+.optionPlayer {
+  border-color: color-mix(in srgb, var(--signal) 28%, transparent);
+}
+
+.optionDead {
+  border-color: color-mix(in srgb, var(--dead) 45%, transparent);
+  background: var(--dead-fill);
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.optionDead:hover {
+  border-color: color-mix(in srgb, var(--dead) 45%, transparent);
+  background: var(--dead-fill);
+  box-shadow: none;
+}
+
+.optionText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.optionName {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.optionKind {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--beacon) 85%, var(--muted));
+}
+
+.optionYears {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+
+.optionSub {
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.deadTag {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dead);
+}
+
+@media (max-width: 1100px) {
+  .optionsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .optionsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chip {
+    max-width: 9.5rem;
+  }
+
+  .chipName {
+    max-width: 7.5rem;
+  }
+}

@@ -109,6 +109,47 @@ describe("gameReducer click flow with real data", () => {
     expect(state.phase).toBe("start");
     expect(state.level).toBe(1);
   });
+
+  it("Next level starts a new puzzle at the incremented level without going to start", () => {
+    const first = generateRandomPair(g, { random: mulberry32(21), level: 2 });
+    let state: GameState = gameReducer(
+      { ...initialGameState, level: 2 },
+      { type: "START_GAME", pair: first },
+    );
+
+    for (let i = 0; i < first.path.length - 1; i++) {
+      const { playerId, entityId } = first.path[i];
+      state = gameReducer(state, { type: "EXPAND_PLAYER", playerId });
+      state = gameReducer(state, {
+        type: "SELECT_ENTITY",
+        entityId: entityId!,
+      });
+      state = gameReducer(state, {
+        type: "SELECT_PLAYER",
+        playerId: first.path[i + 1].playerId,
+      });
+    }
+
+    expect(state.phase).toBe("won");
+    expect(state.level).toBe(3);
+    const wonStart = state.startPlayerId;
+    const wonTarget = state.targetPlayerId;
+
+    // App's onNextLevel: generate at current (already incremented) level + START_GAME.
+    const next = generateRandomPair(g, { random: mulberry32(22), level: state.level });
+    state = gameReducer(state, { type: "START_GAME", pair: next });
+
+    expect(state.phase).toBe("playing");
+    expect(state.level).toBe(3);
+    expect(state.startPlayerId).toBe(next.startPlayerId);
+    expect(state.targetPlayerId).toBe(next.targetPlayerId);
+    expect(state.chain).toEqual([{ type: "player", id: next.startPlayerId }]);
+    expect(state.expanded).toBeNull();
+    // Genuinely a new puzzle (seeded differently from the won one).
+    expect(
+      state.startPlayerId !== wonStart || state.targetPlayerId !== wonTarget,
+    ).toBe(true);
+  });
 });
 
 describe("gameReducer UNDO", () => {
