@@ -1,6 +1,6 @@
 .wrap {
   width: 100%;
-  min-height: 180px;
+  min-height: 200px;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -16,17 +16,25 @@
 
 .scroll {
   width: 100%;
+  max-height: min(52vh, 420px);
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-x: contain;
+  overscroll-behavior: contain;
   touch-action: pan-x pan-y;
+  cursor: grab;
   scrollbar-color: color-mix(in srgb, var(--signal) 35%, transparent) transparent;
   scrollbar-width: thin;
 }
 
+.scroll.dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
 .scroll::-webkit-scrollbar {
   height: 6px;
+  width: 6px;
 }
 
 .scroll::-webkit-scrollbar-thumb {
@@ -36,7 +44,7 @@
 
 .canvas {
   position: relative;
-  min-height: 150px;
+  min-height: 200px;
 }
 
 .svg {
@@ -87,8 +95,15 @@
 }
 
 .nodeClub {
-  stroke: color-mix(in srgb, var(--muted) 50%, transparent);
+  stroke: color-mix(in srgb, var(--muted) 55%, transparent);
   filter: drop-shadow(0 0 4px color-mix(in srgb, var(--muted) 25%, transparent));
+}
+
+/* Diamond national-team nodes — beacon accent, still palette-only. */
+.nodeNational {
+  stroke: color-mix(in srgb, var(--beacon) 70%, transparent);
+  fill: color-mix(in srgb, var(--beacon) 12%, var(--glass-fill));
+  filter: drop-shadow(0 0 8px var(--beacon-glow));
 }
 
 .nodeActive {
@@ -97,15 +112,54 @@
   filter: drop-shadow(0 0 14px var(--signal-glow));
 }
 
+.nodeNational.nodeActive {
+  stroke: var(--beacon);
+  filter: drop-shadow(0 0 14px var(--beacon-glow));
+}
+
 .chainLabel {
   position: absolute;
   transform: translateX(-50%);
-  /* ~164px: 2-line wrap covers p90 (34 chars) at 0.72rem without crushing neighbors */
-  width: 10.25rem;
-  max-width: 10.25rem;
+  width: 11rem; /* ~176px — 2-line wrap covers p90 club names */
+  max-width: 11rem;
   pointer-events: auto;
   text-align: center;
   z-index: 1;
+}
+
+.labelShell {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  outline: none;
+}
+
+.labelShell:focus-visible .tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  z-index: 5;
+  width: max-content;
+  max-width: min(18rem, 70vw);
+  padding: 0.4rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--signal) 30%, transparent);
+  background: color-mix(in srgb, var(--void) 92%, var(--glass));
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: center;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--void) 70%, transparent);
+  pointer-events: none;
+  white-space: normal;
 }
 
 .chainLabelText {
@@ -113,12 +167,39 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   font-family: var(--font-display);
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 500;
-  line-height: 1.2;
+  line-height: 1.25;
   color: var(--text);
   word-break: break-word;
   overflow-wrap: anywhere;
+}
+
+.kindBadge {
+  display: block;
+  margin-top: 0.12rem;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--beacon) 85%, var(--muted));
+}
+
+.years {
+  display: block;
+  margin-top: 0.12rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  opacity: 0.9;
+}
+
+.satMeta {
+  display: block;
+  margin-top: 0.12rem;
+  font-size: 0.62rem;
+  color: var(--muted);
 }
 
 .satellite {
@@ -139,7 +220,18 @@
 }
 
 .satClub {
-  stroke: color-mix(in srgb, var(--muted) 45%, transparent);
+  stroke: color-mix(in srgb, var(--muted) 50%, transparent);
+}
+
+.satNational {
+  stroke: color-mix(in srgb, var(--beacon) 65%, transparent);
+  fill: color-mix(in srgb, var(--beacon) 10%, var(--glass));
+}
+
+.satNational:hover {
+  fill: color-mix(in srgb, var(--beacon) 22%, var(--glass));
+  stroke: var(--beacon);
+  filter: drop-shadow(0 0 10px var(--beacon-glow));
 }
 
 .satDead {
@@ -159,11 +251,15 @@
 .satLabelWrap {
   position: absolute;
   transform: translateX(-50%);
-  width: 8.75rem; /* ~140px, matches SAT_COL_W */
-  max-width: 8.75rem;
+  width: 10rem; /* ~160px, near SAT_COL_W */
+  max-width: 10rem;
   pointer-events: none;
   text-align: center;
   z-index: 1;
+}
+
+.satLabelWrap .labelShell {
+  pointer-events: auto;
 }
 
 .satLabelWrapDead {
@@ -175,8 +271,8 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   font-family: var(--font-body);
-  font-size: 0.68rem;
-  line-height: 1.2;
+  font-size: 0.7rem;
+  line-height: 1.25;
   color: var(--text);
   word-break: break-word;
   overflow-wrap: anywhere;

@@ -11,7 +11,7 @@
 
 .topbar {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
 }
@@ -24,8 +24,42 @@
   color: var(--text);
 }
 
+.hud {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.levelPill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.28rem 0.7rem 0.32rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--signal) 35%, transparent);
+  background: color-mix(in srgb, var(--signal) 10%, var(--glass-fill));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--signal) 18%, transparent);
+}
+
+.levelKey {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--signal) 80%, var(--muted));
+}
+
+.levelVal {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
 .hops {
-  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
   color: var(--muted);
   letter-spacing: 0.04em;
 }

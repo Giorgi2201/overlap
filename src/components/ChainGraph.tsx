@@ -5,21 +5,26 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
-import type { TenureGraph } from "../lib/graph";
+import type { AffiliationGraph } from "../lib/graph";
+import { formatAffiliationYears } from "../lib/overlap";
 import type { ChainNode, ExpandedView } from "../state/gameState";
 import styles from "./ChainGraph.module.css";
 
 export interface SatelliteOption {
   id: string;
   label: string;
+  /** Flavor metadata (e.g. "2018–2021") — not a validity rule. */
   sublabel?: string;
-  kind: "club" | "player";
+  kind: "club" | "national_team" | "player";
   isDeadEnd: boolean;
 }
 
 interface ChainGraphProps {
-  graph: TenureGraph;
+  graph: AffiliationGraph;
   chain: ChainNode[];
   expanded: ExpandedView | null;
   satellites: SatelliteOption[];
@@ -34,34 +39,70 @@ interface Point {
 
 /**
  * Layout constants — fixed sizes so a 6-hop chain (13 nodes) stays readable.
- * Club names in graph-data: p75=28, p90=34, p95=41, max=98.
- * Labels allow ~34 chars / 2 lines (~p90); longer names get a tooltip.
+ * Club names in graph-data: p75≈28, p90≈34, p95≈41, max≈98.
+ * Label boxes sized for ~p90 at 2 lines; outliers get a hover/focus tooltip.
  */
-const PLAYER_R = 26;
-const CLUB_R = 18;
-const SAT_PLAYER_R = 22;
-const SAT_CLUB_R = 17;
-const PAD_X = 56;
-/** Fixed gap between consecutive chain nodes (never shrinks). */
-const NODE_GAP = 168;
-const CHAIN_Y = 70;
-/** Max characters shown before ellipsis — covers ~90% of club names. */
-const CLUB_LABEL_CHARS = 34;
-const PLAYER_LABEL_CHARS = 22;
-/** Satellite column width sized for 2-line club labels near p90 length. */
-const SAT_COL_W = 148;
-const SAT_ROW_H = 78;
+export const LAYOUT = {
+  PLAYER_R: 26,
+  CLUB_R: 18,
+  NT_R: 17,
+  SAT_PLAYER_R: 22,
+  SAT_CLUB_R: 16,
+  SAT_NT_R: 15,
+  PAD_X: 64,
+  /** Fixed gap between consecutive chain nodes (never shrinks). */
+  NODE_GAP: 192,
+  CHAIN_Y: 78,
+  /** ~p90 club names fit in 2 lines at this char budget. */
+  LABEL_CHARS: 36,
+  PLAYER_LABEL_CHARS: 24,
+  /** Satellite column width sized for 2-line club labels near p90. */
+  SAT_COL_W: 168,
+  SAT_ROW_H: 92,
+  LABEL_BOX_PX: 176,
+} as const;
 
-function labelFor(graph: TenureGraph, node: ChainNode): string {
+function labelFor(graph: AffiliationGraph, node: ChainNode): string {
   if (node.type === "player") return graph.players.get(node.id)?.name ?? node.id;
-  return graph.clubs.get(node.id)?.name ?? node.id;
+  return graph.entities.get(node.id)?.name ?? node.id;
 }
 
-function truncate(name: string, maxChars: number): { text: string; truncated: boolean } {
+function entityKind(
+  graph: AffiliationGraph,
+  node: ChainNode,
+): "player" | "club" | "national_team" {
+  if (node.type === "player") return "player";
+  return graph.entities.get(node.id)?.type === "national_team"
+    ? "national_team"
+    : "club";
+}
+
+function yearsForChainEntity(
+  graph: AffiliationGraph,
+  chain: ChainNode[],
+  entityIndex: number,
+): string | null {
+  const node = chain[entityIndex];
+  if (!node || node.type !== "entity") return null;
+  const entity = graph.entities.get(node.id);
+  if (!entity || entity.type !== "club") return null;
+  const prev = chain[entityIndex - 1];
+  if (!prev || prev.type !== "player") return null;
+  const aff = graph
+    .getAffiliationsForPlayer(prev.id)
+    .find((a) => a.entityId === node.id);
+  return aff ? formatAffiliationYears(aff) : null;
+}
+
+function truncate(
+  name: string,
+  maxChars: number,
+): { text: string; truncated: boolean } {
   if (name.length <= maxChars) return { text: name, truncated: false };
   return { text: `${name.slice(0, maxChars - 1)}…`, truncated: true };
 }
 
+/** Readable label with hover/focus tooltip when the full name doesn't fit. */
 function NameLabel({
   full,
   maxChars,
@@ -73,16 +114,108 @@ function NameLabel({
   className: string;
   lines?: number;
 }) {
-  const { text, truncated } = truncate(full, maxChars);
+  const ref = useRef<HTMLSpanElement>(null);
+  const [showTip, setShowTip] = useState(false);
+  const { text, truncated: charTruncated } = truncate(full, maxChars);
+  const [overflows, setOverflows] = useState(charTruncated);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    setOverflows(charTruncated || el.scrollHeight > el.clientHeight + 1);
+  }, [full, text, charTruncated, lines]);
+
+  const needsTip = overflows || charTruncated;
+
   return (
     <span
-      className={className}
-      title={truncated || full.length > 20 ? full : undefined}
-      style={{ WebkitLineClamp: lines }}
+      className={styles.labelShell}
+      onMouseEnter={() => needsTip && setShowTip(true)}
+      onMouseLeave={() => setShowTip(false)}
+      onFocus={() => needsTip && setShowTip(true)}
+      onBlur={() => setShowTip(false)}
+      tabIndex={needsTip ? 0 : undefined}
+      aria-label={needsTip ? full : undefined}
     >
-      {text}
+      <span
+        ref={ref}
+        className={className}
+        style={{ WebkitLineClamp: lines } as CSSProperties}
+      >
+        {text}
+      </span>
+      {showTip && needsTip ? (
+        <span className={styles.tooltip} role="tooltip">
+          {full}
+        </span>
+      ) : null}
     </span>
   );
+}
+
+function nodeRadius(kind: "player" | "club" | "national_team", sat: boolean): number {
+  if (sat) {
+    if (kind === "player") return LAYOUT.SAT_PLAYER_R;
+    if (kind === "national_team") return LAYOUT.SAT_NT_R;
+    return LAYOUT.SAT_CLUB_R;
+  }
+  if (kind === "player") return LAYOUT.PLAYER_R;
+  if (kind === "national_team") return LAYOUT.NT_R;
+  return LAYOUT.CLUB_R;
+}
+
+/** Club = circle; national team = rounded diamond (beacon stroke). */
+function EntityShape({
+  kind,
+  cx,
+  cy,
+  r,
+  className,
+  interactive,
+  onClick,
+  onKeyDown,
+  tabIndex,
+  ariaLabel,
+  ariaDisabled,
+}: {
+  kind: "player" | "club" | "national_team";
+  cx: number;
+  cy: number;
+  r: number;
+  className: string;
+  interactive?: boolean;
+  onClick?: () => void;
+  onKeyDown?: (e: KeyboardEvent) => void;
+  tabIndex?: number;
+  ariaLabel?: string;
+  ariaDisabled?: boolean;
+}) {
+  const shared = {
+    className,
+    onClick,
+    onKeyDown,
+    tabIndex: interactive ? tabIndex : undefined,
+    role: interactive ? ("button" as const) : undefined,
+    "aria-label": ariaLabel,
+    "aria-disabled": ariaDisabled,
+  };
+
+  if (kind === "national_team") {
+    const side = r * Math.SQRT2;
+    return (
+      <rect
+        x={cx - side / 2}
+        y={cy - side / 2}
+        width={side}
+        height={side}
+        rx={3.5}
+        transform={`rotate(45 ${cx} ${cy})`}
+        {...shared}
+      />
+    );
+  }
+
+  return <circle cx={cx} cy={cy} r={r} {...shared} />;
 }
 
 export function ChainGraph({
@@ -95,6 +228,11 @@ export function ChainGraph({
 }: ChainGraphProps) {
   const uid = useId().replace(/:/g, "");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ active: boolean; x: number; left: number }>({
+    active: false,
+    x: 0,
+    left: 0,
+  });
   const [viewportW, setViewportW] = useState(640);
   const [animateEdge, setAnimateEdge] = useState<number | null>(null);
   const prevLen = useRef(chain.length);
@@ -122,29 +260,31 @@ export function ChainGraph({
   // Content width grows with the chain; never compresses nodes.
   const contentWidth = useMemo(() => {
     const n = Math.max(chain.length, 1);
-    const chainW = PAD_X * 2 + Math.max(0, n - 1) * NODE_GAP;
+    const chainW = LAYOUT.PAD_X * 2 + Math.max(0, n - 1) * LAYOUT.NODE_GAP;
     return Math.max(viewportW, chainW);
   }, [chain.length, viewportW]);
 
   const chainPoints: Point[] = useMemo(() => {
     const n = Math.max(chain.length, 1);
     if (n === 1) {
-      return [{ x: contentWidth / 2, y: CHAIN_Y }];
+      return [{ x: contentWidth / 2, y: LAYOUT.CHAIN_Y }];
     }
-    // Prefer centering a short chain in the viewport; long chains start at PAD_X.
-    const span = (n - 1) * NODE_GAP;
+    const span = (n - 1) * LAYOUT.NODE_GAP;
     const startX =
-      span + PAD_X * 2 <= viewportW
+      span + LAYOUT.PAD_X * 2 <= viewportW
         ? (contentWidth - span) / 2
-        : PAD_X;
+        : LAYOUT.PAD_X;
     return chain.map((_, i) => ({
-      x: startX + i * NODE_GAP,
-      y: CHAIN_Y,
+      x: startX + i * LAYOUT.NODE_GAP,
+      y: LAYOUT.CHAIN_Y,
     }));
   }, [chain, contentWidth, viewportW]);
 
   const activeIndex = chain.length - 1;
-  const activePoint = chainPoints[activeIndex] ?? { x: contentWidth / 2, y: CHAIN_Y };
+  const activePoint = chainPoints[activeIndex] ?? {
+    x: contentWidth / 2,
+    y: LAYOUT.CHAIN_Y,
+  };
 
   // Keep the newest chain node in view when the circuit grows.
   useEffect(() => {
@@ -154,7 +294,7 @@ export function ChainGraph({
     if (!target) return;
     const left = el.scrollLeft;
     const right = left + el.clientWidth;
-    const margin = 72;
+    const margin = 88;
     if (target.x - margin < left || target.x + margin > right) {
       el.scrollTo({
         left: Math.max(0, target.x - el.clientWidth * 0.55),
@@ -167,50 +307,88 @@ export function ChainGraph({
     if (satellites.length === 0) return [];
     const cols = Math.max(
       2,
-      Math.min(5, Math.ceil(Math.sqrt(satellites.length * 1.1))),
+      Math.min(4, Math.ceil(Math.sqrt(satellites.length * 1.05))),
     );
-    const startY = CHAIN_Y + 100;
-    const gridW = (cols - 1) * SAT_COL_W;
-    // Anchor the constellation under the active node, clamped into content.
+    const startY = LAYOUT.CHAIN_Y + 118;
+    const gridW = (cols - 1) * LAYOUT.SAT_COL_W;
     const originX = Math.min(
-      Math.max(activePoint.x - gridW / 2, PAD_X),
-      Math.max(PAD_X, contentWidth - PAD_X - gridW),
+      Math.max(activePoint.x - gridW / 2, LAYOUT.PAD_X),
+      Math.max(LAYOUT.PAD_X, contentWidth - LAYOUT.PAD_X - gridW),
     );
     return satellites.map((s, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
       return {
         ...s,
-        x: originX + col * SAT_COL_W,
-        y: startY + row * SAT_ROW_H,
+        x: originX + col * LAYOUT.SAT_COL_W,
+        y: startY + row * LAYOUT.SAT_ROW_H,
       };
     });
   }, [satellites, activePoint.x, contentWidth]);
 
-  // Satellites may extend past the chain width — grow the canvas.
   const canvasWidth = useMemo(() => {
     if (satelliteLayout.length === 0) return contentWidth;
-    const maxX = Math.max(...satelliteLayout.map((s) => s.x)) + SAT_COL_W / 2 + 24;
+    const maxX =
+      Math.max(...satelliteLayout.map((s) => s.x)) + LAYOUT.SAT_COL_W / 2 + 28;
     return Math.max(contentWidth, maxX);
   }, [contentWidth, satelliteLayout]);
 
   const graphHeight = useMemo(() => {
-    if (satelliteLayout.length === 0) return 150;
+    // Room for chain labels (+ optional years) under the spine.
+    if (satelliteLayout.length === 0) return 200;
     const maxY = Math.max(...satelliteLayout.map((s) => s.y));
-    return maxY + 52;
+    return maxY + 64;
   }, [satelliteLayout]);
+
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    // Don't steal clicks from satellite buttons.
+    const t = e.target as Element;
+    if (t.closest("circle, rect, [role='button']")) return;
+    dragRef.current = { active: true, x: e.clientX, left: el.scrollLeft };
+    el.setPointerCapture(e.pointerId);
+    el.classList.add(styles.dragging);
+  };
+
+  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current.active) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const dx = e.clientX - dragRef.current.x;
+    el.scrollLeft = dragRef.current.left - dx;
+  };
+
+  const endDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current.active) return;
+    dragRef.current.active = false;
+    scrollRef.current?.classList.remove(styles.dragging);
+    try {
+      scrollRef.current?.releasePointerCapture(e.pointerId);
+    } catch {
+      /* already released */
+    }
+  };
 
   const prompt =
     expanded === null
       ? "Open the start player to begin the circuit."
-      : expanded.kind === "clubs"
-        ? "Choose a club they actually played for."
-        : "Choose a teammate who overlapped there.";
+      : expanded.kind === "entities"
+        ? "Choose a club or national team they represented."
+        : "Choose someone else affiliated with that entity.";
 
   return (
     <div className={styles.wrap}>
       <p className={styles.prompt}>{prompt}</p>
-      <div className={styles.scroll} ref={scrollRef}>
+      <div
+        className={styles.scroll}
+        ref={scrollRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      >
         <div
           className={styles.canvas}
           style={{ width: canvasWidth, height: graphHeight }}
@@ -269,47 +447,58 @@ export function ChainGraph({
 
             {chain.map((node, i) => {
               const p = chainPoints[i];
-              const r = node.type === "player" ? PLAYER_R : CLUB_R;
+              const kind = entityKind(graph, node);
+              const r = nodeRadius(kind, false);
               const isActive = i === activeIndex && !won;
               return (
-                <circle
+                <EntityShape
                   key={`node-${node.type}-${node.id}-${i}`}
+                  kind={kind}
+                  cx={p.x}
+                  cy={p.y}
+                  r={r}
                   className={[
                     styles.node,
-                    node.type === "player" ? styles.nodePlayer : styles.nodeClub,
+                    kind === "player"
+                      ? styles.nodePlayer
+                      : kind === "national_team"
+                        ? styles.nodeNational
+                        : styles.nodeClub,
                     isActive ? styles.nodeActive : "",
                   ]
                     .filter(Boolean)
                     .join(" ")}
-                  cx={p.x}
-                  cy={p.y}
-                  r={r}
                 />
               );
             })}
 
             {satelliteLayout.map((s) => {
-              const r = s.kind === "player" ? SAT_PLAYER_R : SAT_CLUB_R;
+              const r = nodeRadius(s.kind, true);
               return (
-                <circle
+                <EntityShape
                   key={`sat-circle-${s.id}`}
+                  kind={s.kind}
+                  cx={s.x}
+                  cy={s.y}
+                  r={r}
+                  interactive
                   className={[
                     styles.satellite,
-                    s.kind === "club" ? styles.satClub : "",
+                    s.kind === "national_team"
+                      ? styles.satNational
+                      : s.kind === "club"
+                        ? styles.satClub
+                        : "",
                     s.isDeadEnd ? styles.satDead : "",
                   ]
                     .filter(Boolean)
                     .join(" ")}
-                  cx={s.x}
-                  cy={s.y}
-                  r={r}
                   onClick={() => {
                     if (!s.isDeadEnd) onSelectSatellite(s.id);
                   }}
-                  role="button"
                   tabIndex={s.isDeadEnd ? -1 : 0}
-                  aria-disabled={s.isDeadEnd}
-                  aria-label={`${s.label}${s.isDeadEnd ? " (dead end)" : ""}`}
+                  ariaDisabled={s.isDeadEnd}
+                  ariaLabel={`${s.label}${s.kind === "national_team" ? " (national team)" : s.kind === "club" ? " (club)" : ""}${s.isDeadEnd ? " — dead end" : ""}`}
                   onKeyDown={(e) => {
                     if (!s.isDeadEnd && (e.key === "Enter" || e.key === " ")) {
                       e.preventDefault();
@@ -321,42 +510,70 @@ export function ChainGraph({
             })}
           </svg>
 
-          {/* HTML labels — readable width + native tooltip for outliers */}
           {chain.map((node, i) => {
             const p = chainPoints[i];
-            const r = node.type === "player" ? PLAYER_R : CLUB_R;
+            const kind = entityKind(graph, node);
+            const r = nodeRadius(kind, false);
             const full = labelFor(graph, node);
-            const maxChars = node.type === "club" ? CLUB_LABEL_CHARS : PLAYER_LABEL_CHARS;
+            const maxChars =
+              kind === "player" ? LAYOUT.PLAYER_LABEL_CHARS : LAYOUT.LABEL_CHARS;
+            const years = yearsForChainEntity(graph, chain, i);
             return (
               <div
                 key={`label-${node.type}-${node.id}-${i}`}
                 className={styles.chainLabel}
-                style={{ left: p.x, top: p.y + r + 6 }}
+                style={{ left: p.x, top: p.y + r + 8 }}
               >
                 <NameLabel
                   full={full}
                   maxChars={maxChars}
                   className={styles.chainLabelText}
                 />
+                {kind === "national_team" ? (
+                  <span className={styles.kindBadge}>national team</span>
+                ) : null}
+                {years ? (
+                  <span className={styles.years} title="Career years (flavor)">
+                    {years}
+                  </span>
+                ) : null}
               </div>
             );
           })}
 
           {satelliteLayout.map((s) => {
-            const r = s.kind === "player" ? SAT_PLAYER_R : SAT_CLUB_R;
-            const maxChars = s.kind === "club" ? CLUB_LABEL_CHARS : PLAYER_LABEL_CHARS;
+            const r = nodeRadius(s.kind, true);
+            const maxChars =
+              s.kind === "player" ? LAYOUT.PLAYER_LABEL_CHARS : LAYOUT.LABEL_CHARS;
             return (
               <div
                 key={`sat-label-${s.id}`}
                 className={`${styles.satLabelWrap} ${s.isDeadEnd ? styles.satLabelWrapDead : ""}`}
-                style={{ left: s.x, top: s.y + r + 4 }}
+                style={{ left: s.x, top: s.y + r + 6 }}
               >
                 <NameLabel
                   full={s.label}
                   maxChars={maxChars}
                   className={styles.satLabelText}
                 />
-                {s.isDeadEnd ? <span className={styles.deadTag}>dead end</span> : null}
+                {s.kind === "national_team" ? (
+                  <span className={styles.kindBadge}>national team</span>
+                ) : null}
+                {s.sublabel ? (
+                  <span
+                    className={
+                      s.kind === "player" ? styles.satMeta : styles.years
+                    }
+                    title={
+                      s.kind === "club" ? "Career years (flavor)" : undefined
+                    }
+                  >
+                    {s.sublabel}
+                  </span>
+                ) : null}
+                {s.isDeadEnd ? (
+                  <span className={styles.deadTag}>dead end</span>
+                ) : null}
               </div>
             );
           })}

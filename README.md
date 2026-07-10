@@ -17,6 +17,6 @@ Python scripts that refresh `src/data/graph-data.json` from Transfermarkt CSVs l
 
 ```bash
 python data-pipeline/build_tenures.py
-python data-pipeline/build_graph.py
-# then copy data-pipeline/output/graph-data.json → src/data/graph-data.json
+python data-pipeline/build_affiliations.py
+# then copy data-pipeline/output/raw-affiliations.json → src/data/ when the app is wired to it
 ```

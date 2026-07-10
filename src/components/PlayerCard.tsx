@@ -58,7 +58,7 @@ export function PlayerCard({
           </span>
         ) : null}
         {interactive ? (
-          <span className={styles.hint}>Tap to open clubs</span>
+          <span className={styles.hint}>Tap to open affiliations</span>
         ) : null}
       </button>
     </div>

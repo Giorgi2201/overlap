@@ -88,6 +88,41 @@
   color: transparent;
 }
 
+.level {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.levelPill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  margin: 0.85rem 0 0;
+  padding: 0.35rem 0.85rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--signal) 35%, transparent);
+  background: color-mix(in srgb, var(--signal) 10%, var(--glass-fill));
+  box-shadow: 0 0 22px color-mix(in srgb, var(--signal) 16%, transparent);
+}
+
+.levelKey {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--signal) 80%, var(--muted));
+}
+
+.levelVal {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
 .lede {
   font-size: 1.1rem;
   color: var(--text);
@@ -127,6 +162,85 @@
 .cta:focus-visible {
   outline: 2px solid var(--signal);
   outline-offset: 3px;
+}
+
+.resetProgress {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: color-mix(in srgb, var(--muted) 85%, transparent);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--muted) 35%, transparent);
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color var(--dur-soft) ease;
+}
+
+.resetProgress:hover {
+  color: var(--muted);
+}
+
+.resetZone {
+  margin-top: 1.35rem;
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.resetConfirm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--dead) 40%, transparent);
+  background: color-mix(in srgb, var(--dead) 8%, var(--glass-fill));
+}
+
+.resetPrompt {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.resetActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.resetCancel,
+.resetDanger {
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.resetCancel {
+  border: 1px solid color-mix(in srgb, var(--muted) 35%, transparent);
+  background: transparent;
+  color: var(--muted);
+}
+
+.resetCancel:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--muted) 55%, transparent);
+}
+
+.resetDanger {
+  border: 1px solid color-mix(in srgb, var(--dead) 55%, transparent);
+  background: color-mix(in srgb, var(--dead) 18%, transparent);
+  color: var(--text);
+}
+
+.resetDanger:hover {
+  background: color-mix(in srgb, var(--dead) 28%, transparent);
 }
 
 @keyframes ambDraw {

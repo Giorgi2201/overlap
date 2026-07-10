@@ -32,16 +32,17 @@ describe("gameReducer click flow with real data", () => {
     expect(state.phase).toBe("playing");
     expect(state.chain).toEqual([{ type: "player", id: pair.startPlayerId }]);
 
-    // Drive the UI actions along the known shortest path:
-    // expand player -> click club -> click next player -> ...
     for (let i = 0; i < pair.path.length - 1; i++) {
-      const { playerId, clubId } = pair.path[i];
+      const { playerId, entityId } = pair.path[i];
       state = gameReducer(state, { type: "EXPAND_PLAYER", playerId });
-      expect(state.expanded).toEqual({ kind: "clubs", playerId });
-      state = gameReducer(state, { type: "SELECT_CLUB", clubId: clubId! });
+      expect(state.expanded).toEqual({ kind: "entities", playerId });
+      state = gameReducer(state, {
+        type: "SELECT_ENTITY",
+        entityId: entityId!,
+      });
       expect(state.expanded).toEqual({
         kind: "teammates",
-        clubId,
+        entityId,
         viaPlayerId: playerId,
       });
       state = gameReducer(state, {
@@ -53,7 +54,7 @@ describe("gameReducer click flow with real data", () => {
     expect(state.phase).toBe("won");
     expect(state.expanded).toBeNull();
     expect(currentPlayerId(state.chain)).toBe(pair.targetPlayerId);
-    expect(state.chain.filter((n) => n.type === "club")).toHaveLength(
+    expect(state.chain.filter((n) => n.type === "entity")).toHaveLength(
       pair.pathLength,
     );
   });
@@ -68,11 +69,45 @@ describe("gameReducer click flow with real data", () => {
     expect(state.expanded).toBeNull();
   });
 
-  it("resets to the start screen on RESET", () => {
+  it("resets to the start screen on RESET without clearing level", () => {
     const pair = generateRandomPair(g, { random: mulberry32(3) });
-    let state = gameReducer(initialGameState, { type: "START_GAME", pair });
+    let state = gameReducer(
+      { ...initialGameState, level: 4 },
+      { type: "START_GAME", pair },
+    );
     state = gameReducer(state, { type: "RESET" });
-    expect(state).toEqual(initialGameState);
+    expect(state.phase).toBe("start");
+    expect(state.level).toBe(4);
+    expect(state.chain).toEqual([]);
+    expect(state.startPlayerId).toBeNull();
+  });
+
+  it("increments level on win and RESET_PROGRESS restores level 1", () => {
+    const pair = generateRandomPair(g, { random: mulberry32(8), level: 1 });
+    let state: GameState = gameReducer(
+      { ...initialGameState, level: 2 },
+      { type: "START_GAME", pair },
+    );
+
+    for (let i = 0; i < pair.path.length - 1; i++) {
+      const { playerId, entityId } = pair.path[i];
+      state = gameReducer(state, { type: "EXPAND_PLAYER", playerId });
+      state = gameReducer(state, {
+        type: "SELECT_ENTITY",
+        entityId: entityId!,
+      });
+      state = gameReducer(state, {
+        type: "SELECT_PLAYER",
+        playerId: pair.path[i + 1].playerId,
+      });
+    }
+
+    expect(state.phase).toBe("won");
+    expect(state.level).toBe(3);
+
+    state = gameReducer(state, { type: "RESET_PROGRESS" });
+    expect(state.phase).toBe("start");
+    expect(state.level).toBe(1);
   });
 });
 
@@ -85,42 +120,42 @@ describe("gameReducer UNDO", () => {
     expect(state).toEqual(before);
   });
 
-  it("undoing a club restores that player's clubs list", () => {
+  it("undoing an entity restores that player's entities list", () => {
     const pair = generateRandomPair(g, { random: mulberry32(5) });
     let state = gameReducer(initialGameState, { type: "START_GAME", pair });
-    const clubId = pair.path[0].clubId!;
+    const entityId = pair.path[0].entityId!;
     state = gameReducer(state, {
       type: "EXPAND_PLAYER",
       playerId: pair.startPlayerId,
     });
-    state = gameReducer(state, { type: "SELECT_CLUB", clubId });
+    state = gameReducer(state, { type: "SELECT_ENTITY", entityId });
     state = gameReducer(state, { type: "UNDO" });
     expect(state.chain).toEqual([{ type: "player", id: pair.startPlayerId }]);
     expect(state.expanded).toEqual({
-      kind: "clubs",
+      kind: "entities",
       playerId: pair.startPlayerId,
     });
   });
 
-  it("undoing a player restores the previous club's teammates list", () => {
+  it("undoing a player restores the previous entity's teammates list", () => {
     const pair = generateRandomPair(g, { random: mulberry32(6) });
     let state = gameReducer(initialGameState, { type: "START_GAME", pair });
-    const clubId = pair.path[0].clubId!;
+    const entityId = pair.path[0].entityId!;
     const midPlayerId = pair.path[1].playerId;
     state = gameReducer(state, {
       type: "EXPAND_PLAYER",
       playerId: pair.startPlayerId,
     });
-    state = gameReducer(state, { type: "SELECT_CLUB", clubId });
+    state = gameReducer(state, { type: "SELECT_ENTITY", entityId });
     state = gameReducer(state, { type: "SELECT_PLAYER", playerId: midPlayerId });
     state = gameReducer(state, { type: "UNDO" });
     expect(state.chain).toEqual([
       { type: "player", id: pair.startPlayerId },
-      { type: "club", id: clubId },
+      { type: "entity", id: entityId },
     ]);
     expect(state.expanded).toEqual({
       kind: "teammates",
-      clubId,
+      entityId,
       viaPlayerId: pair.startPlayerId,
     });
   });
@@ -128,13 +163,13 @@ describe("gameReducer UNDO", () => {
   it("multi-step undo walks back to the start player", () => {
     const pair = generateRandomPair(g, { random: mulberry32(7) });
     let state = gameReducer(initialGameState, { type: "START_GAME", pair });
-    const clubId = pair.path[0].clubId!;
+    const entityId = pair.path[0].entityId!;
     const midPlayerId = pair.path[1].playerId;
     state = gameReducer(state, {
       type: "EXPAND_PLAYER",
       playerId: pair.startPlayerId,
     });
-    state = gameReducer(state, { type: "SELECT_CLUB", clubId });
+    state = gameReducer(state, { type: "SELECT_ENTITY", entityId });
     state = gameReducer(state, { type: "SELECT_PLAYER", playerId: midPlayerId });
 
     state = gameReducer(state, { type: "UNDO" });
@@ -144,7 +179,7 @@ describe("gameReducer UNDO", () => {
     state = gameReducer(state, { type: "UNDO" });
     expect(state.chain).toEqual([{ type: "player", id: pair.startPlayerId }]);
     expect(state.expanded).toEqual({
-      kind: "clubs",
+      kind: "entities",
       playerId: pair.startPlayerId,
     });
 

@@ -2,154 +2,118 @@
  * BFS pathfinding over the teammate graph. Used only to validate that a
  * puzzle pair is solvable -- never shown to the player.
  *
- * Nodes are players; an edge exists between two players if they have a
- * valid teammate overlap (same club, >= 30 days) at ANY shared club.
- * Neighbors are looked up from TenureGraph's precomputed adjacency list
- * (built once on first access / loadGraph). A full BFS is then a cheap
- * walk over ~1000 nodes; exclusions for dead-end detection stay correct.
+ * Nodes are players; an edge exists when two players share ANY entity
+ * (club or national team). Neighbors come from the precomputed adjacency.
  */
 
-import type { TenureGraph } from "./graph";
-import { MIN_OVERLAP_DAYS, tenuresOverlap } from "./overlap";
+import {
+  DIFFICULTY,
+  buildFameTiers,
+  pickPlayerIdFromTier,
+  pickTier,
+  tierWeightsForLevel,
+  type FameTiers,
+} from "./difficulty";
+import type { AffiliationGraph } from "./graph";
 
 /** Default BFS depth cap: a path may use at most this many links. */
 export const MAX_HOPS = 6;
 
 /** Attempts before generateRandomPair gives up (indicates data sparsity). */
-export const MAX_PAIR_ATTEMPTS = 200;
+export const MAX_PAIR_ATTEMPTS = 500;
 
 /**
- * Default minimum links for a generated puzzle. 2-hop puzzles proved too
- * easy in distribution testing (~two-thirds of random pairs), so the
- * default requires 3+; pass a lower minHops for an easier difficulty.
+ * Default minimum links for a generated puzzle.
+ *
+ * Under share-any-entity, ~85% of random pairs are already 2 hops and ~14%
+ * are direct (1 hop). 3-hop pairs are ~1% — usable as a hard mode, but too
+ * sparse for the default. Default excludes only direct teammates.
  */
-export const MIN_PUZZLE_HOPS = 3;
+export const MIN_PUZZLE_HOPS = 2;
 
 /**
- * One step of a path. `clubId` is the club used to link FORWARD to the
+ * One step of a path. `entityId` is the entity used to link FORWARD to the
  * next player; it is null on the final step.
  */
 export interface PathStep {
   playerId: string;
-  clubId: string | null;
+  entityId: string | null;
+  /** @deprecated Use entityId. */
+  clubId?: string | null;
 }
 
 /** Nodes a path is not allowed to route through. */
 export interface PathExclusions {
   players?: ReadonlySet<string>;
+  entities?: ReadonlySet<string>;
+  /** @deprecated Use entities. */
   clubs?: ReadonlySet<string>;
 }
 
 export interface PuzzlePair {
   startPlayerId: string;
   targetPlayerId: string;
-  /** The shortest path found, kept for diagnostics (never shown to the player). */
   path: PathStep[];
-  /** Number of links in that path (path.length - 1). Always >= minHops. */
   pathLength: number;
 }
 
 export interface RandomPairOptions {
-  /** Minimum links in the shortest path (default MIN_PUZZLE_HOPS = 3). */
+  /** Progressive difficulty level (1+). When set, pool + hop rules scale. */
+  level?: number;
   minHops?: number;
-  /** Maximum links in the shortest path (default MAX_HOPS = 6). */
   maxHops?: number;
-  /** "Today" for open-ended tenures (default: actual today). */
-  asOf?: Date;
-  /** Random source, injectable for deterministic tests. */
+  maxAttempts?: number;
   random?: () => number;
+  /** Optional precomputed fame tiers (tests / batch generation). */
+  fameTiers?: FameTiers;
+}
+
+function excludedEntities(exclude?: PathExclusions): ReadonlySet<string> | undefined {
+  if (!exclude) return undefined;
+  if (exclude.entities && exclude.clubs) {
+    return new Set([...exclude.entities, ...exclude.clubs]);
+  }
+  return exclude.entities ?? exclude.clubs;
 }
 
 /**
- * Every player with a valid teammate overlap with `playerId` at ANY shared
- * club. Returns a Map of teammate player id -> the clubId of one club
- * where they overlapped (the first found; a pair may share several).
- *
- * Uses the precomputed adjacency list when `asOf` is omitted (the common
- * game path). With an explicit `asOf`, falls back to scanning tenures so
- * tests that pin "today" stay exact.
+ * Every player sharing any entity with `playerId`.
+ * Returns Map of teammate id -> one entityId that links them.
  */
 export function getAllTeammateLinks(
-  graph: TenureGraph,
+  graph: AffiliationGraph,
   playerId: string,
-  minDays: number = MIN_OVERLAP_DAYS,
-  asOf?: Date,
   exclude?: PathExclusions,
 ): Map<string, string> {
   const links = new Map<string, string>();
-
-  if (asOf === undefined && minDays === MIN_OVERLAP_DAYS) {
-    for (const edge of graph.getTeammateAdjacency().get(playerId) ?? []) {
-      if (exclude?.clubs?.has(edge.clubId)) continue;
-      if (exclude?.players?.has(edge.neighborId)) continue;
-      if (!links.has(edge.neighborId)) links.set(edge.neighborId, edge.clubId);
-    }
-    return links;
-  }
-
-  for (const mine of graph.getTenuresForPlayer(playerId)) {
-    if (exclude?.clubs?.has(mine.clubId)) continue;
-    for (const other of graph.getTenuresAtClub(mine.clubId)) {
-      if (other.playerId === playerId || links.has(other.playerId)) continue;
-      if (exclude?.players?.has(other.playerId)) continue;
-      if (tenuresOverlap(mine, other, minDays, asOf)) {
-        links.set(other.playerId, mine.clubId);
-      }
-    }
+  const bannedEntities = excludedEntities(exclude);
+  for (const edge of graph.getTeammateAdjacency().get(playerId) ?? []) {
+    if (bannedEntities?.has(edge.entityId)) continue;
+    if (exclude?.players?.has(edge.neighborId)) continue;
+    if (!links.has(edge.neighborId)) links.set(edge.neighborId, edge.entityId);
   }
   return links;
 }
 
-/**
- * All players reachable from `fromPlayerId` through valid teammate links,
- * optionally avoiding excluded players/clubs entirely. Includes
- * `fromPlayerId` itself. One BFS answers "can X still reach the target?"
- * for every X at once -- much cheaper than a findShortestPath call per
- * candidate when marking dead ends in a list.
- *
- * Walks the precomputed adjacency list, so a full-graph BFS with
- * exclusions is typically a few milliseconds after the one-time build.
- */
 export function reachablePlayers(
-  graph: TenureGraph,
+  graph: AffiliationGraph,
   fromPlayerId: string,
-  options: { maxHops?: number; asOf?: Date; exclude?: PathExclusions } = {},
+  options: { maxHops?: number; exclude?: PathExclusions } = {},
 ): Set<string> {
-  const { maxHops = Infinity, asOf, exclude } = options;
-
-  // Fast path: adjacency walk (no asOf pin).
-  if (asOf === undefined) {
-    const adj = graph.getTeammateAdjacency();
-    const visited = new Set([fromPlayerId]);
-    let frontier = [fromPlayerId];
-    for (let depth = 0; depth < maxHops && frontier.length > 0; depth++) {
-      const next: string[] = [];
-      for (const current of frontier) {
-        for (const edge of adj.get(current) ?? []) {
-          if (exclude?.clubs?.has(edge.clubId)) continue;
-          if (exclude?.players?.has(edge.neighborId)) continue;
-          if (visited.has(edge.neighborId)) continue;
-          visited.add(edge.neighborId);
-          next.push(edge.neighborId);
-        }
-      }
-      frontier = next;
-    }
-    return visited;
-  }
-
+  const { maxHops = Infinity, exclude } = options;
+  const adj = graph.getTeammateAdjacency();
+  const bannedEntities = excludedEntities(exclude);
   const visited = new Set([fromPlayerId]);
   let frontier = [fromPlayerId];
   for (let depth = 0; depth < maxHops && frontier.length > 0; depth++) {
     const next: string[] = [];
     for (const current of frontier) {
-      for (const neighborId of getAllTeammateLinks(
-        graph, current, MIN_OVERLAP_DAYS, asOf, exclude,
-      ).keys()) {
-        if (!visited.has(neighborId)) {
-          visited.add(neighborId);
-          next.push(neighborId);
-        }
+      for (const edge of adj.get(current) ?? []) {
+        if (bannedEntities?.has(edge.entityId)) continue;
+        if (exclude?.players?.has(edge.neighborId)) continue;
+        if (visited.has(edge.neighborId)) continue;
+        visited.add(edge.neighborId);
+        next.push(edge.neighborId);
       }
     }
     frontier = next;
@@ -157,47 +121,30 @@ export function reachablePlayers(
   return visited;
 }
 
-/** Whether two players have a valid teammate overlap at any shared club. */
 export function hasDirectLink(
-  graph: TenureGraph,
+  graph: AffiliationGraph,
   playerIdA: string,
   playerIdB: string,
-  minDays: number = MIN_OVERLAP_DAYS,
-  asOf?: Date,
 ): boolean {
-  for (const mine of graph.getTenuresForPlayer(playerIdA)) {
-    for (const other of graph.getTenuresAtClub(mine.clubId)) {
-      if (other.playerId === playerIdB && tenuresOverlap(mine, other, minDays, asOf)) {
-        return true;
-      }
-    }
+  for (const edge of graph.getTeammateAdjacency().get(playerIdA) ?? []) {
+    if (edge.neighborId === playerIdB) return true;
   }
   return false;
 }
 
-/**
- * Breadth-first search for the shortest player -> club -> player chain
- * from `startPlayerId` to `targetPlayerId`.
- *
- * Returns the path as steps [{playerId, clubId-linking-forward}, ...,
- * {playerId: target, clubId: null}], or null if the target is not
- * reachable within `maxHops` links.
- */
 export function findShortestPath(
   startPlayerId: string,
   targetPlayerId: string,
-  graph: TenureGraph,
+  graph: AffiliationGraph,
   maxHops: number = MAX_HOPS,
-  asOf?: Date,
 ): PathStep[] | null {
   if (!graph.players.has(startPlayerId) || !graph.players.has(targetPlayerId)) {
     return null;
   }
   if (startPlayerId === targetPlayerId) {
-    return [{ playerId: startPlayerId, clubId: null }];
+    return [{ playerId: startPlayerId, entityId: null, clubId: null }];
   }
 
-  // parent: child playerId -> [parent playerId, club linking parent->child]
   const parent = new Map<string, [string, string]>();
   let frontier = [startPlayerId];
   const visited = new Set(frontier);
@@ -205,10 +152,10 @@ export function findShortestPath(
   for (let depth = 0; depth < maxHops && frontier.length > 0; depth++) {
     const next: string[] = [];
     for (const current of frontier) {
-      for (const [neighborId, clubId] of getAllTeammateLinks(graph, current, MIN_OVERLAP_DAYS, asOf)) {
+      for (const [neighborId, entityId] of getAllTeammateLinks(graph, current)) {
         if (visited.has(neighborId)) continue;
         visited.add(neighborId);
-        parent.set(neighborId, [current, clubId]);
+        parent.set(neighborId, [current, entityId]);
         if (neighborId === targetPlayerId) {
           return reconstructPath(parent, startPlayerId, targetPlayerId);
         }
@@ -225,32 +172,130 @@ function reconstructPath(
   startPlayerId: string,
   targetPlayerId: string,
 ): PathStep[] {
-  const steps: PathStep[] = [{ playerId: targetPlayerId, clubId: null }];
+  const steps: PathStep[] = [
+    { playerId: targetPlayerId, entityId: null, clubId: null },
+  ];
   let current = targetPlayerId;
   while (current !== startPlayerId) {
-    const [prev, clubId] = parent.get(current)!;
-    steps.push({ playerId: prev, clubId });
+    const [prev, entityId] = parent.get(current)!;
+    steps.push({ playerId: prev, entityId, clubId: entityId });
     current = prev;
   }
   return steps.reverse();
 }
 
-/**
- * Picks two random players whose shortest teammate path is between
- * `minHops` and `maxHops` links, so every puzzle needs intermediate
- * players but is guaranteed solvable.
- *
- * Throws after MAX_PAIR_ATTEMPTS failed attempts -- if that ever fires,
- * the player pool is too sparse and the dataset needs revisiting.
- */
+function tryRandomPair(
+  graph: AffiliationGraph,
+  options: {
+    minHops: number;
+    maxHops: number;
+    maxAttempts: number;
+    pickPair: () => [string, string];
+  },
+): PuzzlePair | null {
+  const { minHops, maxHops, maxAttempts, pickPair } = options;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const [startPlayerId, targetPlayerId] = pickPair();
+    if (startPlayerId === targetPlayerId) continue;
+    if (minHops >= 2 && hasDirectLink(graph, startPlayerId, targetPlayerId)) {
+      continue;
+    }
+
+    const path = findShortestPath(startPlayerId, targetPlayerId, graph, maxHops);
+    if (path === null || path.length - 1 < minHops) continue;
+
+    return {
+      startPlayerId,
+      targetPlayerId,
+      path,
+      pathLength: path.length - 1,
+    };
+  }
+  return null;
+}
+
+function pickEndpointsForLevel(
+  tiers: FameTiers,
+  level: number,
+  random: () => number,
+): [string, string] {
+  const weights = tierWeightsForLevel(level);
+  const startTier = pickTier(weights, random);
+  const targetTier = pickTier(weights, random);
+  const startPlayerId = pickPlayerIdFromTier(tiers, startTier, random);
+  const targetPlayerId = pickPlayerIdFromTier(
+    tiers,
+    targetTier,
+    random,
+    startPlayerId,
+  );
+  return [startPlayerId, targetPlayerId];
+}
+
+function generateForLevel(
+  graph: AffiliationGraph,
+  level: number,
+  options: RandomPairOptions,
+): PuzzlePair {
+  const random = options.random ?? Math.random;
+  const maxHops = options.maxHops ?? MAX_HOPS;
+  const tiers = options.fameTiers ?? buildFameTiers(graph.players.values());
+  const L = Math.max(1, Math.floor(level));
+  const pickPair = () => pickEndpointsForLevel(tiers, L, random);
+
+  if (L <= DIFFICULTY.EARLY_MAX_LEVEL) {
+    const pair = tryRandomPair(graph, {
+      minHops: options.minHops ?? DIFFICULTY.EARLY_MIN_HOPS,
+      maxHops,
+      maxAttempts: options.maxAttempts ?? DIFFICULTY.EARLY_MAX_ATTEMPTS,
+      pickPair,
+    });
+    if (pair) return pair;
+  } else if (L <= DIFFICULTY.MID_MAX_LEVEL) {
+    // Prefer a longer path when one appears within the preferred budget.
+    const preferred = tryRandomPair(graph, {
+      minHops: options.minHops ?? DIFFICULTY.MID_PREFERRED_HOPS,
+      maxHops,
+      maxAttempts: options.maxAttempts ?? DIFFICULTY.MID_PREFERRED_ATTEMPTS,
+      pickPair,
+    });
+    if (preferred) return preferred;
+
+    const fallback = tryRandomPair(graph, {
+      minHops: options.minHops ?? DIFFICULTY.MID_MIN_HOPS,
+      maxHops,
+      maxAttempts: DIFFICULTY.MID_FALLBACK_ATTEMPTS,
+      pickPair,
+    });
+    if (fallback) return fallback;
+  } else {
+    const pair = tryRandomPair(graph, {
+      minHops: options.minHops ?? DIFFICULTY.HIGH_MIN_HOPS,
+      maxHops,
+      maxAttempts: options.maxAttempts ?? DIFFICULTY.HIGH_MAX_ATTEMPTS,
+      pickPair,
+    });
+    if (pair) return pair;
+  }
+
+  throw new Error(
+    `generateRandomPair: no valid pair for level ${L} -- ` +
+      "the player pool looks too sparse for solvable puzzles",
+  );
+}
+
 export function generateRandomPair(
-  graph: TenureGraph,
+  graph: AffiliationGraph,
   options: RandomPairOptions = {},
 ): PuzzlePair {
+  if (options.level != null) {
+    return generateForLevel(graph, options.level, options);
+  }
+
   const {
     minHops = MIN_PUZZLE_HOPS,
     maxHops = MAX_HOPS,
-    asOf,
+    maxAttempts = MAX_PAIR_ATTEMPTS,
     random = Math.random,
   } = options;
   const playerIds = [...graph.players.keys()];
@@ -258,22 +303,21 @@ export function generateRandomPair(
     throw new Error("generateRandomPair: need at least 2 players");
   }
 
-  for (let attempt = 0; attempt < MAX_PAIR_ATTEMPTS; attempt++) {
-    const startPlayerId = playerIds[Math.floor(random() * playerIds.length)];
-    const targetPlayerId = playerIds[Math.floor(random() * playerIds.length)];
-    if (startPlayerId === targetPlayerId) continue;
-    // Cheap pre-check before running a BFS: minHops >= 2 always excludes
-    // direct teammates.
-    if (hasDirectLink(graph, startPlayerId, targetPlayerId, MIN_OVERLAP_DAYS, asOf)) continue;
+  const pair = tryRandomPair(graph, {
+    minHops,
+    maxHops,
+    maxAttempts,
+    pickPair: () => {
+      const startPlayerId = playerIds[Math.floor(random() * playerIds.length)];
+      const targetPlayerId = playerIds[Math.floor(random() * playerIds.length)];
+      return [startPlayerId, targetPlayerId];
+    },
+  });
 
-    const path = findShortestPath(startPlayerId, targetPlayerId, graph, maxHops, asOf);
-    if (path === null || path.length - 1 < minHops) continue;
-
-    return { startPlayerId, targetPlayerId, path, pathLength: path.length - 1 };
-  }
+  if (pair) return pair;
 
   throw new Error(
-    `generateRandomPair: no valid pair after ${MAX_PAIR_ATTEMPTS} attempts -- ` +
+    `generateRandomPair: no valid pair after ${maxAttempts} attempts -- ` +
       "the player pool looks too sparse for solvable puzzles",
   );
 }

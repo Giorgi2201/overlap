@@ -1,0 +1,35 @@
+{
+  "rule": "share-any-entity (no date overlap)",
+  "rawPairs500": {
+    "1": 70,
+    "2": 424,
+    "3": 6
+  },
+  "avgBfsMs": 0.265,
+  "puzzles100_minHops2": {
+    "dist": {
+      "2": 98,
+      "3": 2
+    },
+    "found": 100,
+    "tries": 117,
+    "successRate": 0.8547,
+    "elapsedMs": 19.59140000000002
+  },
+  "puzzles100_minHops3": {
+    "dist": {
+      "3": 100
+    },
+    "found": 100,
+    "tries": 7566,
+    "successRate": 0.0132,
+    "elapsedMs": 1432.6490999999996
+  },
+  "puzzles100_minHops4": {
+    "dist": {},
+    "found": 0,
+    "tries": 50000,
+    "successRate": 0,
+    "elapsedMs": 9131.7782
+  }
+}

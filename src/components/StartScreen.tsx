@@ -1,10 +1,15 @@
+import { useState } from "react";
 import styles from "./StartScreen.module.css";
 
 interface StartScreenProps {
+  level: number;
   onStart: () => void;
+  onResetProgress: () => void;
 }
 
-export function StartScreen({ onStart }: StartScreenProps) {
+export function StartScreen({ level, onStart, onResetProgress }: StartScreenProps) {
+  const [confirmReset, setConfirmReset] = useState(false);
+
   return (
     <main className={styles.screen}>
       <div className={styles.ambient} aria-hidden="true">
@@ -12,20 +17,59 @@ export function StartScreen({ onStart }: StartScreenProps) {
       </div>
 
       <div className={styles.content}>
-        <p className={styles.eyebrow}>Football · shared clubs · real dates</p>
+        <p className={styles.eyebrow}>Football · shared clubs & nations</p>
         <h1 className={styles.brand}>Overlap</h1>
+        <p className={styles.levelPill}>
+          <span className={styles.levelKey}>Level</span>
+          <span className={styles.levelVal}>{level}</span>
+        </p>
         <p className={styles.lede}>
-          Two players. Build a chain of teammates who were actually at the same
-          club at the same time — not just names on a Wikipedia list.
+          Two players. Build a chain through clubs or national teams they
+          actually represented — not just names on a Wikipedia list.
         </p>
         <p className={styles.detail}>
-          Pick a club, then a teammate who overlapped there for at least 30 days.
-          Keep going until you reach the target. Dead ends are marked so you
-          never walk into a wall blind.
+          Pick an entity, then a teammate who shared it. Keep going until you
+          reach the target. Dead ends are marked so you never walk into a wall
+          blind.
         </p>
         <button type="button" className={styles.cta} onClick={onStart}>
           New puzzle
         </button>
+
+        <div className={styles.resetZone}>
+          {confirmReset ? (
+            <div className={styles.resetConfirm} role="group" aria-label="Confirm reset">
+              <p className={styles.resetPrompt}>Reset level back to 1?</p>
+              <div className={styles.resetActions}>
+                <button
+                  type="button"
+                  className={styles.resetCancel}
+                  onClick={() => setConfirmReset(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className={styles.resetDanger}
+                  onClick={() => {
+                    setConfirmReset(false);
+                    onResetProgress();
+                  }}
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className={styles.resetProgress}
+              onClick={() => setConfirmReset(true)}
+            >
+              Reset progress
+            </button>
+          )}
+        </div>
       </div>
     </main>
   );

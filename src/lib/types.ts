@@ -1,16 +1,13 @@
 /**
- * Types mirroring the shape of src/data/graph-data.json (produced by
- * data-pipeline/build_graph.py).
+ * Types mirroring src/data/graph-data.json (from
+ * data-pipeline/build_affiliations.py).
  *
- * Dates are kept as ISO "YYYY-MM-DD" strings rather than Date objects:
- * - they match the JSON payload exactly, so no deserialization pass over
- *   ~5.5k tenures is needed at load time;
- * - ISO date strings order correctly under plain string comparison;
- * - Date objects drag in timezone pitfalls (new Date("2020-01-01") is
- *   midnight UTC, but Date arithmetic in local time can be off by a day).
- * The interval math in overlap.ts parses strings to UTC timestamps at the
- * edges instead.
+ * Dates stay as ISO "YYYY-MM-DD" strings for the same reasons as before
+ * (JSON fidelity, sortability, no timezone pitfalls). They are display
+ * metadata on club affiliations only — link validity ignores them.
  */
+
+export type EntityType = "club" | "national_team";
 
 export interface Player {
   id: string;
@@ -18,25 +15,36 @@ export interface Player {
   position: string;
   /** ISO date string, or null when unknown. */
   dob: string | null;
+  /** Peak Transfermarkt market value in EUR — primary fame signal. */
+  highestMarketValue?: number;
+  /** Senior international caps — fallback fame signal when MV is missing. */
+  internationalCaps?: number;
 }
 
-export interface Club {
+export interface Entity {
   id: string;
   name: string;
+  type: EntityType;
   country: string;
 }
 
-export interface Tenure {
+/** @deprecated Use Entity — kept as an alias during the rename. */
+export type Club = Entity;
+
+export interface Affiliation {
   playerId: string;
-  clubId: string;
-  /** ISO date string, inclusive start of the spell. */
-  startDate: string;
-  /** ISO date string (exclusive end, half-open interval) or null if ongoing. */
+  entityId: string;
+  /** ISO date, club tenures only; null for national teams / unknown. */
+  startDate: string | null;
+  /** ISO date or null if ongoing / unknown. */
   endDate: string | null;
 }
 
+/** @deprecated Use Affiliation. */
+export type Tenure = Affiliation;
+
 export interface GraphData {
   players: Player[];
-  clubs: Club[];
-  tenures: Tenure[];
+  entities: Entity[];
+  affiliations: Affiliation[];
 }
