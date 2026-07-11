@@ -76,27 +76,35 @@
   grid-template-columns: minmax(140px, 190px) minmax(0, 1fr) minmax(140px, 190px);
   grid-template-areas: "start panel target";
   gap: 0.75rem;
-  align-items: stretch;
+  /* Panel can stretch; cards must NOT — they hug content. */
+  align-items: start;
   flex: 1;
   min-height: 0;
 }
 
 .startSlot {
   grid-area: start;
+  align-self: start;
+  height: fit-content;
 }
 
 .targetSlot {
   grid-area: target;
+  align-self: start;
+  height: fit-content;
 }
 
 .cardSlot {
   display: flex;
   align-items: flex-start;
+  align-self: start;
+  height: fit-content;
   min-height: 0;
 }
 
 .panelSlot {
   grid-area: panel;
+  align-self: stretch;
   min-width: 0;
   min-height: 0;
   display: flex;

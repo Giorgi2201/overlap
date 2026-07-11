@@ -120,9 +120,17 @@ export function PlayerCard({
                 {club}
               </span>
             ) : null}
-            {interactive ? (
-              <span className={styles.hint}>Tap to open</span>
-            ) : null}
+            <span
+              className={[
+                styles.hint,
+                interactive ? "" : styles.hintHidden,
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              aria-hidden={!interactive}
+            >
+              Tap to open
+            </span>
           </span>
         </span>
       </button>

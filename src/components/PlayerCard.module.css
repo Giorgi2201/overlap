@@ -1,6 +1,8 @@
 .card {
   position: relative;
   width: min(100%, 220px);
+  height: fit-content;
+  align-self: flex-start;
   border-radius: var(--radius-card);
   background: var(--glass-fill);
   border: 1px solid var(--glass-border);
@@ -13,13 +15,17 @@
   will-change: transform;
 }
 
+/* Content-sized compact card — shared by start + target. */
 .compact {
   width: 100%;
-  max-width: 200px;
+  max-width: 100%;
+  height: fit-content;
+  box-sizing: border-box;
 }
 
 .compact .hit {
   padding: 0.65rem 0.7rem 0.7rem;
+  height: auto;
 }
 
 .compact .avatar {
@@ -29,15 +35,18 @@
 
 .compact .name {
   font-size: 0.98rem;
-}
-
-.compact .hint {
-  margin-top: 0.2rem;
-  font-size: 0.68rem;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
 }
 
 .compact .meta {
   font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .compact .club {
@@ -45,13 +54,22 @@
   -webkit-line-clamp: 1;
 }
 
+.compact .hint {
+  margin-top: 0.2rem;
+  font-size: 0.68rem;
+  min-height: 1rem;
+  line-height: 1rem;
+}
+
 .start {
+  /* Glow only — same box model as .target */
   box-shadow:
-    0 0 24px var(--signal-glow),
+    0 0 22px var(--signal-glow),
     0 18px 40px color-mix(in srgb, var(--void) 65%, transparent);
 }
 
 .target {
+  border-width: 1px;
   border-color: color-mix(in srgb, var(--beacon) 35%, transparent);
   box-shadow:
     0 0 22px var(--beacon-glow),
@@ -78,6 +96,7 @@
 .hit {
   display: block;
   width: 100%;
+  height: auto;
   padding: 0.95rem 1rem 1rem;
   border: 0;
   background: transparent;
@@ -89,7 +108,7 @@
   cursor: default;
 }
 
-/* Side-by-side avatar + copy — keeps card height ≈ previous footprint. */
+/* Side-by-side avatar + copy — card height follows content. */
 .top {
   display: flex;
   align-items: flex-start;
@@ -101,7 +120,8 @@
   flex-direction: column;
   gap: 0.18rem;
   min-width: 0;
-  flex: 1;
+  /* Horizontal leftover space only — do NOT grow the card vertically. */
+  flex: 1 1 auto;
 }
 
 .avatar {
@@ -196,6 +216,12 @@
   color: color-mix(in srgb, var(--signal) 75%, var(--muted));
 }
 
+/* Keeps start/target the same height when target has no CTA. */
+.hintHidden {
+  visibility: hidden;
+  user-select: none;
+}
+
 @keyframes beaconPulse {
   0%,
   100% {
@@ -215,9 +241,10 @@
 @media (max-width: 720px) {
   .card {
     width: 100%;
+    height: fit-content;
   }
 
-  .name {
+  .compact .name {
     font-size: 0.95rem;
   }
 

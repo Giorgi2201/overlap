@@ -39,13 +39,23 @@ describe("player imageUrl data + card footprint", () => {
   });
 
   it("keeps the avatar inside a side-by-side top row (does not stack to grow height)", () => {
-    // Layout contract: .top is flex row; avatar is a fixed rem circle.
     expect(css).toMatch(/\.top\s*\{[^}]*display:\s*flex/s);
     expect(css).toMatch(/\.avatar\s*\{[^}]*width:\s*2\.75rem/s);
     expect(css).toMatch(/\.compact\s+\.avatar\s*\{[^}]*width:\s*2\.35rem/s);
-    // Game screen still locks to viewport — regression guard.
     const screenCss = readFileSync(join(here, "GameScreen.module.css"), "utf8");
     expect(screenCss).toMatch(/\.screen\s*\{[^}]*overflow:\s*hidden/s);
     expect(screenCss).toMatch(/\.screen\s*\{[^}]*height:\s*100svh/s);
+  });
+
+  it("sizes cards to content — never stretch to column height", () => {
+    expect(css).toMatch(/\.card\s*\{[^}]*height:\s*fit-content/s);
+    expect(css).toMatch(/\.compact\s*\{[^}]*height:\s*fit-content/s);
+    expect(css).not.toMatch(/\.card\s*\{[^}]*height:\s*100%/s);
+    expect(css).not.toMatch(/\.compact\s*\{[^}]*min-height:/s);
+
+    const screenCss = readFileSync(join(here, "GameScreen.module.css"), "utf8");
+    expect(screenCss).toMatch(/\.board\s*\{[^}]*align-items:\s*start/s);
+    expect(screenCss).toMatch(/\.cardSlot\s*\{[^}]*height:\s*fit-content/s);
+    expect(screenCss).toMatch(/\.panelSlot\s*\{[^}]*align-self:\s*stretch/s);
   });
 });
