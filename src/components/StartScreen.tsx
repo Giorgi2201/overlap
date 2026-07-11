@@ -7,17 +7,50 @@ interface StartScreenProps {
   onResetProgress: () => void;
 }
 
+/**
+ * Aligns with GameScreen's primary mobile layout breakpoint (board collapses
+ * start/target onto one row at 860px).
+ */
+export const HERO_MOBILE_MAX_WIDTH_PX = 860;
+
+export const HERO_BG_DESKTOP = "/hero-bg.mp4";
+export const HERO_BG_MOBILE = "/hero-bg-mobile.mp4";
+
+export function heroBgSrcForViewport(isMobile: boolean): string {
+  return isMobile ? HERO_BG_MOBILE : HERO_BG_DESKTOP;
+}
+
+function readIsMobileViewport(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return false;
+  }
+  return window.matchMedia(`(max-width: ${HERO_MOBILE_MAX_WIDTH_PX}px)`).matches;
+}
+
 export function StartScreen({ level, onStart, onResetProgress }: StartScreenProps) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
+  // Resolve on first client render so we never mount the wrong <video> (and
+  // therefore never kick off a download for the unused file).
+  const [isMobile, setIsMobile] = useState(readIsMobileViewport);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const heroSrc = heroBgSrcForViewport(isMobile);
 
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const sync = () => setReduceMotion(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
+    const motionMq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const widthMq = window.matchMedia(
+      `(max-width: ${HERO_MOBILE_MAX_WIDTH_PX}px)`,
+    );
+    const syncMotion = () => setReduceMotion(motionMq.matches);
+    const syncWidth = () => setIsMobile(widthMq.matches);
+    syncMotion();
+    syncWidth();
+    motionMq.addEventListener("change", syncMotion);
+    widthMq.addEventListener("change", syncWidth);
+    return () => {
+      motionMq.removeEventListener("change", syncMotion);
+      widthMq.removeEventListener("change", syncWidth);
+    };
   }, []);
 
   useEffect(() => {
@@ -31,13 +64,19 @@ export function StartScreen({ level, onStart, onResetProgress }: StartScreenProp
         // Autoplay blocked — leave paused; void scrim still covers the screen.
       });
     }
-  }, [reduceMotion]);
+  }, [reduceMotion, heroSrc]);
 
   return (
     <main className={styles.screen}>
       <div className={styles.media} aria-hidden="true">
         {!reduceMotion ? (
+          /*
+            JS-selected single <video>, not <source media>.
+            Video <source media> is unreliable across browsers and can still
+            fetch both files — we only ever mount one src per viewport.
+          */
           <video
+            key={heroSrc}
             ref={videoRef}
             className={styles.video}
             autoPlay
@@ -45,15 +84,8 @@ export function StartScreen({ level, onStart, onResetProgress }: StartScreenProp
             loop
             playsInline
             preload="metadata"
-          >
-            {/*
-              Drop /public/hero-bg.webm and add
-              <source src="/hero-bg.webm" type="video/webm" /> above the MP4
-              when a WebM encode is available. Shipping MP4-only for now so
-              we don't 404 the preferred format on every visit.
-            */}
-            <source src="/hero-bg.mp4" type="video/mp4" />
-          </video>
+            src={heroSrc}
+          />
         ) : null}
         <div className={styles.scrim} />
       </div>
