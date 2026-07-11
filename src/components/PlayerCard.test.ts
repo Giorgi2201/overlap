@@ -3,59 +3,48 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadGraph } from "../lib/graph";
-import { playerInitials } from "./PlayerCard";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const css = readFileSync(join(here, "PlayerCard.module.css"), "utf8");
 
-describe("playerInitials fallback", () => {
-  it("builds clean initials for common name shapes", () => {
-    expect(playerInitials("Lionel Messi")).toBe("LM");
-    expect(playerInitials("Neymar")).toBe("NE");
-    expect(playerInitials("  Vinicius  Junior ")).toBe("VJ");
-    expect(playerInitials("")).toBe("?");
-  });
-});
-
-describe("player imageUrl data + card footprint", () => {
+describe("PlayerCard text-only layout", () => {
   const g = loadGraph();
 
-  it("threads Transfermarkt imageUrl onto pool players", () => {
-    const withUrl = [...g.players.values()].filter((p) => p.imageUrl);
-    expect(withUrl.length).toBe(g.players.size);
-    expect(withUrl[0].imageUrl).toMatch(
-      /^https:\/\/img\.a\.transfermarkt\.technology\//,
+  it("does not ship player imageUrl fields anymore", () => {
+    const anyImage = [...g.players.values()].some(
+      (p) => "imageUrl" in p && (p as { imageUrl?: unknown }).imageUrl,
     );
+    expect(anyImage).toBe(false);
   });
 
-  it("covers a known star WITH an image and supports missing-URL fallback path", () => {
-    const messi = g.players.get("28003");
-    expect(messi?.name).toMatch(/Messi/);
-    expect(messi?.imageUrl).toMatch(/28003/);
-
-    // Fallback path: no URL → initials still produce a clean placeholder.
-    expect(playerInitials(messi!.name)).toBe("LM");
-    expect(playerInitials("Unknown Player")).toBe("UP");
+  it("shows entity names in full — no ellipsis clamp on club/NT lines", () => {
+    expect(css).toMatch(/\.club\s*,\s*\n?\.nationalTeam|\.club,\s*\.nationalTeam/s);
+    expect(css).toMatch(/white-space:\s*normal/);
+    expect(css).not.toMatch(/\.club[^{]*\{[^}]*text-overflow:\s*ellipsis/s);
+    expect(css).not.toMatch(/\.club[^{]*\{[^}]*-webkit-line-clamp/s);
+    expect(css).not.toMatch(/\.avatar\s*\{/);
   });
 
-  it("keeps the avatar inside a side-by-side top row (does not stack to grow height)", () => {
-    expect(css).toMatch(/\.top\s*\{[^}]*display:\s*flex/s);
-    expect(css).toMatch(/\.avatar\s*\{[^}]*width:\s*2\.75rem/s);
-    expect(css).toMatch(/\.compact\s+\.avatar\s*\{[^}]*width:\s*2\.35rem/s);
-    const screenCss = readFileSync(join(here, "GameScreen.module.css"), "utf8");
-    expect(screenCss).toMatch(/\.screen\s*\{[^}]*overflow:\s*hidden/s);
-    expect(screenCss).toMatch(/\.screen\s*\{[^}]*height:\s*100svh/s);
-  });
-
-  it("sizes cards to content — never stretch to column height", () => {
+  it("keeps matched content-sized cards (no column stretch)", () => {
     expect(css).toMatch(/\.card\s*\{[^}]*height:\s*fit-content/s);
     expect(css).toMatch(/\.compact\s*\{[^}]*height:\s*fit-content/s);
-    expect(css).not.toMatch(/\.card\s*\{[^}]*height:\s*100%/s);
-    expect(css).not.toMatch(/\.compact\s*\{[^}]*min-height:/s);
+    expect(css).toMatch(/\.hintHidden\s*\{/);
 
     const screenCss = readFileSync(join(here, "GameScreen.module.css"), "utf8");
+    expect(screenCss).toMatch(/\.screen\s*\{[^}]*overflow:\s*hidden/s);
     expect(screenCss).toMatch(/\.board\s*\{[^}]*align-items:\s*start/s);
     expect(screenCss).toMatch(/\.cardSlot\s*\{[^}]*height:\s*fit-content/s);
-    expect(screenCss).toMatch(/\.panelSlot\s*\{[^}]*align-self:\s*stretch/s);
+  });
+
+  it("covers long club names present in the dataset (Al-Hilal-class)", async () => {
+    const longClubs = [...g.entities.values()].filter(
+      (e) => e.type === "club" && e.name.length > 28,
+    );
+    expect(longClubs.length).toBeGreaterThan(0);
+    const hilal = longClubs.find((e) => /hilal/i.test(e.name));
+    if (hilal) {
+      expect(hilal.name.includes("…")).toBe(false);
+      expect(hilal.name.length).toBeGreaterThan(20);
+    }
   });
 });

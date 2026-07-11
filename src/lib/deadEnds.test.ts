@@ -4,10 +4,12 @@ import { getEntityOptions, getTeammateOptions } from "./deadEnds";
 import type { GraphData } from "./types";
 
 /**
- * Synthetic graph:
+ * Synthetic graph (overlapping club dates so club edges exist):
  *   A ----E1---- B          (B is a leaf: only at E1)
  *   |            |
  *   +----E1------+ C ----E2---- T
+ *
+ * Plus an undated national-team edge A--NT--C used only where noted.
  */
 function deadEndFixture(): {
   graph: AffiliationGraph;
@@ -25,12 +27,42 @@ function deadEndFixture(): {
       { id: "E2", name: "Entity Two", type: "club", country: "" },
     ],
     affiliations: [
-      { playerId: "A", entityId: "E1", startDate: null, endDate: null },
-      { playerId: "A", entityId: "E2", startDate: null, endDate: null },
-      { playerId: "B", entityId: "E1", startDate: null, endDate: null },
-      { playerId: "C", entityId: "E1", startDate: null, endDate: null },
-      { playerId: "C", entityId: "E2", startDate: null, endDate: null },
-      { playerId: "T", entityId: "E2", startDate: null, endDate: null },
+      {
+        playerId: "A",
+        entityId: "E1",
+        startDate: "2020-01-01",
+        endDate: "2023-01-01",
+      },
+      {
+        playerId: "A",
+        entityId: "E2",
+        startDate: "2021-01-01",
+        endDate: "2024-01-01",
+      },
+      {
+        playerId: "B",
+        entityId: "E1",
+        startDate: "2020-06-01",
+        endDate: "2021-06-01",
+      },
+      {
+        playerId: "C",
+        entityId: "E1",
+        startDate: "2021-01-01",
+        endDate: "2022-01-01",
+      },
+      {
+        playerId: "C",
+        entityId: "E2",
+        startDate: "2022-01-01",
+        endDate: "2025-01-01",
+      },
+      {
+        playerId: "T",
+        entityId: "E2",
+        startDate: "2022-06-01",
+        endDate: "2023-06-01",
+      },
     ],
   };
   return {
@@ -71,9 +103,24 @@ describe("dead-end detection", () => {
         { id: "Etarget", name: "Target Ent", type: "national_team", country: "" },
       ],
       affiliations: [
-        { playerId: "A", entityId: "Edead", startDate: null, endDate: null },
-        { playerId: "B", entityId: "Edead", startDate: null, endDate: null },
-        { playerId: "T", entityId: "Etarget", startDate: null, endDate: null },
+        {
+          playerId: "A",
+          entityId: "Edead",
+          startDate: "2020-01-01",
+          endDate: "2022-01-01",
+        },
+        {
+          playerId: "B",
+          entityId: "Edead",
+          startDate: "2020-06-01",
+          endDate: "2021-06-01",
+        },
+        {
+          playerId: "T",
+          entityId: "Etarget",
+          startDate: null,
+          endDate: null,
+        },
       ],
     };
     const g = new AffiliationGraph(onlyDead);
@@ -102,6 +149,39 @@ describe("dead-end detection", () => {
       { type: "entity", id: ids.E2 },
     ]);
     expect(options.find((o) => o.player.id === ids.T)?.isDeadEnd).toBe(false);
+  });
+
+  it("treats undated national-team edges as valid for reachability", () => {
+    const data: GraphData = {
+      players: [
+        { id: "A", name: "A", position: "X", dob: null },
+        { id: "M", name: "Middle", position: "X", dob: null },
+        { id: "T", name: "T", position: "X", dob: null },
+      ],
+      entities: [
+        { id: "NT", name: "Nation", type: "national_team", country: "" },
+        { id: "CLUB", name: "Club", type: "club", country: "" },
+      ],
+      affiliations: [
+        { playerId: "A", entityId: "NT", startDate: null, endDate: null },
+        { playerId: "M", entityId: "NT", startDate: null, endDate: null },
+        {
+          playerId: "M",
+          entityId: "CLUB",
+          startDate: "2020-01-01",
+          endDate: "2022-01-01",
+        },
+        {
+          playerId: "T",
+          entityId: "CLUB",
+          startDate: "2020-06-01",
+          endDate: "2021-06-01",
+        },
+      ],
+    };
+    const g = new AffiliationGraph(data);
+    const options = getEntityOptions(g, "A", "T", [{ type: "player", id: "A" }]);
+    expect(options.find((o) => o.entity.id === "NT")?.isDeadEnd).toBe(false);
   });
 });
 

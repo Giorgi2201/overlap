@@ -2,8 +2,10 @@
  * Dead-end detection for entity / teammate lists.
  *
  * An option is a dead end when picking it cannot lead to the target
- * anymore under the share-any-entity rule, with the chain's already-used
- * players and entities excluded (no trivial backtracking).
+ * anymore under the mixed connection rule (club dated overlap / NT any
+ * shared affiliation), with the chain's already-used players and entities
+ * excluded (no trivial backtracking). Reachability walks the same
+ * precomputed adjacency as pathfinding.
  */
 
 import type { AffiliationGraph } from "./graph";

@@ -2,10 +2,12 @@ import { useMemo, type Dispatch } from "react";
 import type { AffiliationGraph } from "../lib/graph";
 import { getEntityOptions, getTeammateOptions } from "../lib/deadEnds";
 import { formatAffiliationYears } from "../lib/overlap";
+import { buildWinPathReveal } from "../lib/winPath";
 import type { GameAction, GameState } from "../state/gameState";
 import { currentPlayerId } from "../state/gameState";
 import {
   ConnectionPanel,
+  PathChipRow,
   type BreadcrumbChip,
   type OptionCard,
 } from "./ConnectionPanel";
@@ -42,9 +44,25 @@ export function GameScreen({
   const targetPlayer = graph.players.get(state.targetPlayerId!);
   const startClub = graph.getCurrentClub(state.startPlayerId!);
   const targetClub = graph.getCurrentClub(state.targetPlayerId!);
+  const startNationalTeam = graph
+    .getEntitiesForPlayer(state.startPlayerId!)
+    .find((e) => e.type === "national_team");
+  const targetNationalTeam = graph
+    .getEntitiesForPlayer(state.targetPlayerId!)
+    .find((e) => e.type === "national_team");
   const chainTailId = currentPlayerId(state.chain);
   const hopCount = state.chain.filter((n) => n.type === "entity").length;
   const won = state.phase === "won";
+
+  const winReveal = useMemo(() => {
+    if (!won || !state.startPlayerId || !state.targetPlayerId) return null;
+    return buildWinPathReveal(
+      graph,
+      state.startPlayerId,
+      state.targetPlayerId,
+      state.chain,
+    );
+  }, [won, graph, state.startPlayerId, state.targetPlayerId, state.chain]);
 
   const chips: BreadcrumbChip[] = useMemo(() => {
     return state.chain.map((node, i) => {
@@ -162,7 +180,7 @@ export function GameScreen({
             name={startPlayer?.name ?? "—"}
             position={startPlayer?.position}
             club={startClub?.name}
-            imageUrl={startPlayer?.imageUrl}
+            nationalTeam={startNationalTeam?.name}
             role="start"
             active={chainTailId === startPlayer?.id && !won}
             disabled={won || chainTailId !== startPlayer?.id}
@@ -189,7 +207,7 @@ export function GameScreen({
             name={targetPlayer?.name ?? "—"}
             position={targetPlayer?.position}
             club={targetClub?.name}
-            imageUrl={targetPlayer?.imageUrl}
+            nationalTeam={targetNationalTeam?.name}
             role="target"
             won={won}
           />
@@ -205,7 +223,22 @@ export function GameScreen({
           <p className={`mono ${styles.winStat}`}>
             solved in {hopCount} {hopCount === 1 ? "hop" : "hops"} · level{" "}
             {state.level}
+            {winReveal?.kind === "optimal" ? " · optimal path" : ""}
           </p>
+          {winReveal?.kind === "shorter_exists" ? (
+            <div className={styles.shortestReveal}>
+              <p className={`mono ${styles.shortestLabel}`}>
+                Shortest path: {winReveal.shortestHops}{" "}
+                {winReveal.shortestHops === 1 ? "hop" : "hops"}
+              </p>
+              <div className={styles.shortestChips}>
+                <PathChipRow
+                  chips={winReveal.chips}
+                  ariaLabel="Shortest path"
+                />
+              </div>
+            </div>
+          ) : null}
           <button
             type="button"
             className={styles.primaryBtn}

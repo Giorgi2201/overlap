@@ -10,6 +10,12 @@ import styles from "./ConnectionPanel.module.css";
 /** Show search once the grid is large enough that scanning by eye is slow. */
 export const OPTIONS_SEARCH_THRESHOLD = 8;
 
+/**
+ * Quiet mono label on national-team chips/options — signals that NT links
+ * ignore dates (vs club year ranges). Keep short; matches chipYears tone.
+ */
+export const NT_ANY_ERA_LABEL = "any era";
+
 export interface OptionCard {
   id: string;
   label: string;
@@ -47,6 +53,58 @@ function KindMark({ kind }: { kind: BreadcrumbChip["kind"] }) {
     return <span className={styles.markClub} aria-hidden="true" />;
   }
   return <span className={styles.markPlayer} aria-hidden="true" />;
+}
+
+/** Read-only breadcrumb chip row — used in-game and on the win-screen reveal. */
+export function PathChipRow({
+  chips,
+  ariaLabel = "Connection path",
+  className,
+}: {
+  chips: readonly BreadcrumbChip[];
+  ariaLabel?: string;
+  className?: string;
+}) {
+  return (
+    <nav
+      className={[styles.breadcrumb, className].filter(Boolean).join(" ")}
+      aria-label={ariaLabel}
+    >
+      {chips.map((chip, i) => (
+        <div key={chip.key} className={styles.crumbItem}>
+          {i > 0 ? (
+            <span className={styles.chevron} aria-hidden="true">
+              ›
+            </span>
+          ) : null}
+          <span
+            className={[
+              styles.chip,
+              chip.kind === "player"
+                ? styles.chipPlayer
+                : chip.kind === "national_team"
+                  ? styles.chipNational
+                  : styles.chipClub,
+              chip.active ? styles.chipActive : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            <KindMark kind={chip.kind} />
+            <span className={styles.chipBody}>
+              <span className={styles.chipName}>{chip.label}</span>
+              {chip.kind === "national_team" ? (
+                <span className={styles.chipMeta}>{NT_ANY_ERA_LABEL}</span>
+              ) : null}
+              {chip.years ? (
+                <span className={styles.chipYears}>{chip.years}</span>
+              ) : null}
+            </span>
+          </span>
+        </div>
+      ))}
+    </nav>
+  );
 }
 
 function TruncatingName({
@@ -90,8 +148,8 @@ function prefersKeyboardAutofocus(): boolean {
 }
 
 /**
- * Fixed-viewport connection UI: wrapping breadcrumb path + scrollable options grid.
- * No spatial canvas, SVG edges, or page-level pan/scroll.
+ * Fixed-viewport connection UI: single-row horizontal breadcrumb + scrollable
+ * options grid. No spatial canvas, SVG edges, or page-level pan/scroll.
  */
 export function ConnectionPanel({
   chips,
@@ -102,7 +160,10 @@ export function ConnectionPanel({
   onSelectOption,
 }: ConnectionPanelProps) {
   const [query, setQuery] = useState("");
+  const [crumbOverflow, setCrumbOverflow] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const crumbScrollRef = useRef<HTMLElement>(null);
+  const crumbTailRef = useRef<HTMLDivElement>(null);
   const showSearch = options.length >= OPTIONS_SEARCH_THRESHOLD;
 
   useEffect(() => {
@@ -114,6 +175,34 @@ export function ConnectionPanel({
     if (!prefersKeyboardAutofocus()) return;
     searchRef.current?.focus({ preventScroll: true });
   }, [optionsKey, showSearch, won]);
+
+  // Keep the newest chip in view; re-measure overflow affordance.
+  useEffect(() => {
+    const scroller = crumbScrollRef.current;
+    const tail = crumbTailRef.current;
+    if (!scroller) return;
+
+    const measure = () => {
+      setCrumbOverflow(scroller.scrollWidth > scroller.clientWidth + 2);
+    };
+
+    measure();
+    if (tail) {
+      tail.scrollIntoView({
+        behavior: "smooth",
+        inline: "end",
+        block: "nearest",
+      });
+    }
+
+    const ro = new ResizeObserver(measure);
+    ro.observe(scroller);
+    scroller.addEventListener("scroll", measure, { passive: true });
+    return () => {
+      ro.disconnect();
+      scroller.removeEventListener("scroll", measure);
+    };
+  }, [chips.length, chips[chips.length - 1]?.key]);
 
   const filtered = useMemo(
     () => filterOptionsByQuery(options, query),
@@ -129,41 +218,64 @@ export function ConnectionPanel({
     <div className={styles.panel}>
       <p className={styles.prompt}>{prompt}</p>
 
-      <nav className={styles.breadcrumb} aria-label="Connection path">
-        {chips.map((chip, i) => (
-          <div key={chip.key} className={styles.crumbItem}>
-            {i > 0 ? (
-              <span className={styles.chevron} aria-hidden="true">
-                ›
-              </span>
-            ) : null}
-            <span
-              className={[
-                styles.chip,
-                chip.kind === "player"
-                  ? styles.chipPlayer
-                  : chip.kind === "national_team"
-                    ? styles.chipNational
-                    : styles.chipClub,
-                chip.active ? styles.chipActive : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-            >
-              <KindMark kind={chip.kind} />
-              <span className={styles.chipBody}>
-                <span className={styles.chipName}>{chip.label}</span>
-                {chip.kind === "national_team" ? (
-                  <span className={styles.chipMeta}>NT</span>
+      <div
+        className={[
+          styles.breadcrumbShell,
+          crumbOverflow ? styles.breadcrumbOverflow : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <nav
+          ref={crumbScrollRef}
+          className={styles.breadcrumb}
+          aria-label="Connection path"
+        >
+          {chips.map((chip, i) => {
+            const isTail = i === chips.length - 1;
+            return (
+              <div
+                key={chip.key}
+                ref={isTail ? crumbTailRef : undefined}
+                className={styles.crumbItem}
+              >
+                {i > 0 ? (
+                  <span className={styles.chevron} aria-hidden="true">
+                    ›
+                  </span>
                 ) : null}
-                {chip.years ? (
-                  <span className={styles.chipYears}>{chip.years}</span>
-                ) : null}
-              </span>
-            </span>
-          </div>
-        ))}
-      </nav>
+                <span
+                  className={[
+                    styles.chip,
+                    chip.kind === "player"
+                      ? styles.chipPlayer
+                      : chip.kind === "national_team"
+                        ? styles.chipNational
+                        : styles.chipClub,
+                    chip.active ? styles.chipActive : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  <KindMark kind={chip.kind} />
+                  <span className={styles.chipBody}>
+                    <span className={styles.chipName}>{chip.label}</span>
+                    {chip.kind === "national_team" ? (
+                      <span className={styles.chipMeta}>{NT_ANY_ERA_LABEL}</span>
+                    ) : null}
+                    {chip.years ? (
+                      <span className={styles.chipYears}>{chip.years}</span>
+                    ) : null}
+                  </span>
+                </span>
+              </div>
+            );
+          })}
+        </nav>
+        {crumbOverflow ? (
+          <div className={styles.breadcrumbFade} aria-hidden="true" />
+        ) : null}
+      </div>
 
       <div className={styles.optionsRegion}>
         {won ? (
@@ -225,7 +337,7 @@ export function ConnectionPanel({
                         .join(" ")}
                       disabled={opt.isDeadEnd}
                       aria-disabled={opt.isDeadEnd}
-                      aria-label={`${opt.label}${opt.kind === "national_team" ? " (national team)" : opt.kind === "club" ? " (club)" : ""}${opt.isDeadEnd ? " — dead end" : ""}`}
+                      aria-label={`${opt.label}${opt.kind === "national_team" ? ` (national team, ${NT_ANY_ERA_LABEL})` : opt.kind === "club" ? " (club)" : ""}${opt.isDeadEnd ? " — dead end" : ""}`}
                       onClick={() => {
                         if (!opt.isDeadEnd) select(opt.id);
                       }}
@@ -238,7 +350,7 @@ export function ConnectionPanel({
                         />
                         {opt.kind === "national_team" ? (
                           <span className={styles.optionKind}>
-                            National team
+                            {NT_ANY_ERA_LABEL}
                           </span>
                         ) : null}
                         {opt.sublabel ? (

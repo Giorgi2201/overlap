@@ -24,34 +24,21 @@
 }
 
 .compact .hit {
-  padding: 0.65rem 0.7rem 0.7rem;
-  height: auto;
-}
-
-.compact .avatar {
-  width: 2.35rem;
-  height: 2.35rem;
+  gap: 0.18rem;
+  padding: 0.65rem 0.7rem 0.65rem;
 }
 
 .compact .name {
   font-size: 0.98rem;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-  word-break: break-word;
 }
 
 .compact .meta {
   font-size: 0.75rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.compact .club {
-  font-size: 0.7rem;
-  -webkit-line-clamp: 1;
+.compact .club,
+.compact .nationalTeam {
+  font-size: 0.72rem;
 }
 
 .compact .hint {
@@ -62,7 +49,6 @@
 }
 
 .start {
-  /* Glow only — same box model as .target */
   box-shadow:
     0 0 22px var(--signal-glow),
     0 18px 40px color-mix(in srgb, var(--void) 65%, transparent);
@@ -94,7 +80,10 @@
 }
 
 .hit {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.28rem;
   width: 100%;
   height: auto;
   padding: 0.95rem 1rem 1rem;
@@ -106,66 +95,6 @@
 
 .hit:disabled {
   cursor: default;
-}
-
-/* Side-by-side avatar + copy — card height follows content. */
-.top {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.65rem;
-}
-
-.copy {
-  display: flex;
-  flex-direction: column;
-  gap: 0.18rem;
-  min-width: 0;
-  /* Horizontal leftover space only — do NOT grow the card vertically. */
-  flex: 1 1 auto;
-}
-
-.avatar {
-  flex-shrink: 0;
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 999px;
-  overflow: hidden;
-  display: grid;
-  place-items: center;
-  background: color-mix(in srgb, var(--glass) 70%, var(--void));
-  border: 1.5px solid color-mix(in srgb, var(--signal) 30%, transparent);
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--void) 40%, transparent),
-    0 0 14px color-mix(in srgb, var(--signal) 18%, transparent);
-  transform: translateZ(12px);
-}
-
-.avatarStart {
-  border-color: color-mix(in srgb, var(--signal) 45%, transparent);
-}
-
-.avatarTarget {
-  border-color: color-mix(in srgb, var(--beacon) 50%, transparent);
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--void) 40%, transparent),
-    0 0 14px color-mix(in srgb, var(--beacon) 22%, transparent);
-}
-
-.avatarImg {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center top;
-  display: block;
-}
-
-.avatarInitials {
-  font-family: var(--font-display);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--text);
-  line-height: 1;
 }
 
 .role {
@@ -188,9 +117,10 @@
   font-family: var(--font-display);
   font-size: 1.1rem;
   font-weight: 600;
-  line-height: 1.15;
+  line-height: 1.2;
   letter-spacing: -0.03em;
   color: var(--text);
+  word-break: break-word;
 }
 
 .meta {
@@ -198,16 +128,25 @@
   color: var(--muted);
 }
 
-.club {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
+/* Full entity names — wrap, no ellipsis truncation. */
+.club,
+.nationalTeam {
+  display: block;
+  width: 100%;
   font-family: var(--font-body);
-  font-size: 0.74rem;
-  line-height: 1.25;
+  font-size: 0.78rem;
+  line-height: 1.3;
   color: color-mix(in srgb, var(--text) 78%, var(--muted));
   word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nationalTeam {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--beacon) 75%, var(--muted));
 }
 
 .hint {
@@ -245,12 +184,7 @@
   }
 
   .compact .name {
-    font-size: 0.95rem;
-  }
-
-  .avatar {
-    width: 2.25rem;
-    height: 2.25rem;
+    font-size: 0.92rem;
   }
 }
 

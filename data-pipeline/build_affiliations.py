@@ -198,7 +198,6 @@ def main() -> int:
                 **p,
                 "highestMarketValue": mv,
                 "internationalCaps": caps,
-                "imageUrl": (src.get("image_url") or "").strip() or None,
             }
         )
 

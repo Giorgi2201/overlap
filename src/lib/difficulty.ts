@@ -38,8 +38,8 @@ export const DIFFICULTY = {
   MID_FALLBACK_ATTEMPTS: 500,
 
   HIGH_MIN_HOPS: 3,
-  /** 3-hop pairs are ~1.2% of random draws — need a large budget. */
-  HIGH_MAX_ATTEMPTS: 8000,
+  /** ~9% of random pairs are 3-hop under the mixed rule — 1800 is ample. */
+  HIGH_MAX_ATTEMPTS: 1800,
 
   /**
    * At mid levels, probability an endpoint is drawn from "known" (else famous).

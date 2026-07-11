@@ -2,8 +2,9 @@
  * BFS pathfinding over the teammate graph. Used only to validate that a
  * puzzle pair is solvable -- never shown to the player.
  *
- * Nodes are players; an edge exists when two players share ANY entity
- * (club or national team). Neighbors come from the precomputed adjacency.
+ * Nodes are players; edges come from AffiliationGraph adjacency under the
+ * mixed rule (club = dated overlap, national team = shared affiliation).
+ * Reverse-reachability for dead-ends walks the same undirected edges.
  */
 
 import {
@@ -25,9 +26,8 @@ export const MAX_PAIR_ATTEMPTS = 500;
 /**
  * Default minimum links for a generated puzzle.
  *
- * Under share-any-entity, ~85% of random pairs are already 2 hops and ~14%
- * are direct (1 hop). 3-hop pairs are ~1% — usable as a hard mode, but too
- * sparse for the default. Default excludes only direct teammates.
+ * Under the mixed club-overlap / NT-any rule, most random pairs are still
+ * short (see hop-distribution.json). Default excludes only direct teammates.
  */
 export const MIN_PUZZLE_HOPS = 2;
 
@@ -77,7 +77,7 @@ function excludedEntities(exclude?: PathExclusions): ReadonlySet<string> | undef
 }
 
 /**
- * Every player sharing any entity with `playerId`.
+ * Every player linked to `playerId` under the mixed connection rule.
  * Returns Map of teammate id -> one entityId that links them.
  */
 export function getAllTeammateLinks(

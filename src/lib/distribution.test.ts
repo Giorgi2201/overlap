@@ -13,7 +13,7 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-describe("hop distribution (share-any-entity)", () => {
+describe("hop distribution (mixed club-overlap / NT-any)", () => {
   it("reports raw + filtered hop lengths", { timeout: 180_000 }, () => {
     const g = loadGraph();
     const rng = mulberry32(1234);
@@ -61,7 +61,7 @@ describe("hop distribution (share-any-entity)", () => {
     }
 
     const report = {
-      rule: "share-any-entity (no date overlap)",
+      rule: "mixed: club dated overlap (>=30d) / NT any shared affiliation",
       rawPairs500: Object.fromEntries([...raw.entries()].sort()),
       avgBfsMs: Number((bfsMs / 500).toFixed(3)),
       puzzles100_minHops2: sampleFiltered(2),

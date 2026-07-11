@@ -65,6 +65,38 @@ describe("fame tiers", () => {
   });
 });
 
+describe("high-level attempt budget", () => {
+  it("generates levels 10–15 reliably within HIGH_MAX_ATTEMPTS", () => {
+    expect(DIFFICULTY.HIGH_MAX_ATTEMPTS).toBeGreaterThanOrEqual(1500);
+    expect(DIFFICULTY.HIGH_MAX_ATTEMPTS).toBeLessThanOrEqual(2000);
+
+    const samples = 50;
+    const levels = [10, 12, 15] as const;
+    const t0 = performance.now();
+
+    for (const level of levels) {
+      const rng = mulberry32(4200 + level);
+      for (let i = 0; i < samples; i++) {
+        const pair = generateRandomPair(g, {
+          level,
+          random: rng,
+          fameTiers,
+          maxAttempts: DIFFICULTY.HIGH_MAX_ATTEMPTS,
+        });
+        expect(pair.pathLength).toBeGreaterThanOrEqual(DIFFICULTY.HIGH_MIN_HOPS);
+      }
+    }
+
+    const elapsed = performance.now() - t0;
+    // 150 puzzles should stay snappy with ~9% 3-hop density.
+    expect(elapsed).toBeLessThan(8_000);
+    // eslint-disable-next-line no-console
+    console.log(
+      `[high budget] ${levels.length * samples} puzzles @ L${levels.join("/")}: ${elapsed.toFixed(0)}ms (cap ${DIFFICULTY.HIGH_MAX_ATTEMPTS})`,
+    );
+  }, 30_000);
+});
+
 describe("level difficulty curve", () => {
   it("ramps hop length and fame-tier mix across levels 1, 5, 10, 15", () => {
     const levels = [1, 5, 10, 15] as const;

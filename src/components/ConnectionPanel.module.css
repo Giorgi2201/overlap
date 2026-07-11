@@ -15,22 +15,62 @@
   text-align: center;
 }
 
-/* ---- Breadcrumb: wrap, never scroll ---- */
+/* ---- Breadcrumb: single horizontal row, scroll internally ---- */
+
+.breadcrumbShell {
+  position: relative;
+  flex-shrink: 0;
+  min-width: 0;
+}
 
 .breadcrumb {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.28rem 0.1rem;
-  flex-shrink: 0;
-  padding: 0.1rem 0.05rem;
+  padding: 0.15rem 0.05rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--signal) 30%, transparent) transparent;
+}
+
+.breadcrumb::-webkit-scrollbar {
+  height: 4px;
+}
+
+.breadcrumb::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--signal) 30%, transparent);
+  border-radius: 999px;
+}
+
+.breadcrumbFade {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 2.25rem;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--void) 88%, transparent) 55%,
+    var(--void) 100%
+  );
+}
+
+.breadcrumbOverflow .breadcrumb {
+  padding-right: 1.5rem;
 }
 
 .crumbItem {
   display: inline-flex;
   align-items: center;
   gap: 0.15rem;
-  max-width: 100%;
+  flex-shrink: 0;
 }
 
 .chevron {

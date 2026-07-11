@@ -12,9 +12,14 @@ import type { GraphData } from "./types";
 
 const RAMOS = "25557";
 const BELLINGHAM = "581678";
-const REAL_MADRID = "418";
 const MESSI = "28003";
 const SUAREZ = "44352";
+const HAALAND = "418560";
+const ODEGAARD = "316264";
+const NORWAY = "3440";
+const GRIEZMANN = "125781";
+const LEMAR = "205562";
+const ATLETICO = "13";
 
 const g = loadGraph();
 
@@ -41,6 +46,7 @@ function assertPathIsValid(path: PathStep[], graph: AffiliationGraph): void {
   }
 }
 
+/** Chain of clubs with overlapping dated tenures so each hop is a valid club link. */
 function chainGraph(nPlayers: number): AffiliationGraph {
   const data: GraphData = { players: [], entities: [], affiliations: [] };
   for (let i = 0; i < nPlayers; i++) {
@@ -53,28 +59,54 @@ function chainGraph(nPlayers: number): AffiliationGraph {
       type: "club",
       country: "",
     });
+    const year = 2000 + i;
     data.affiliations.push(
-      { playerId: `P${i}`, entityId: `E${i}`, startDate: null, endDate: null },
-      { playerId: `P${i + 1}`, entityId: `E${i}`, startDate: null, endDate: null },
+      {
+        playerId: `P${i}`,
+        entityId: `E${i}`,
+        startDate: `${year}-01-01`,
+        endDate: `${year}-12-31`,
+      },
+      {
+        playerId: `P${i + 1}`,
+        entityId: `E${i}`,
+        startDate: `${year}-06-01`,
+        endDate: `${year + 1}-01-01`,
+      },
     );
   }
   return new AffiliationGraph(data);
 }
 
 describe("findShortestPath on the real dataset", () => {
-  it("finds a 1-hop path for direct shared-entity pair (Ramos–Bellingham via RM)", () => {
-    expect(hasDirectLink(g, RAMOS, BELLINGHAM)).toBe(true);
-    const path = findShortestPath(RAMOS, BELLINGHAM, g, MAX_HOPS);
-    expect(path).not.toBeNull();
-    expect(path!.length - 1).toBe(1);
-    expect(path![0].entityId).toBe(REAL_MADRID);
-    assertPathIsValid(path!, g);
+  it("does not treat Ramos–Bellingham as a direct Real Madrid link", () => {
+    expect(hasDirectLink(g, RAMOS, BELLINGHAM)).toBe(false);
+    const viaRm = getAllTeammateLinks(g, RAMOS).get(BELLINGHAM);
+    expect(viaRm).toBeUndefined();
   });
 
-  it("finds a 1-hop path for Messi–Suárez (still direct via Barcelona)", () => {
+  it("finds a 1-hop path for Messi–Suárez (overlapping Barcelona)", () => {
     const path = findShortestPath(MESSI, SUAREZ, g, MAX_HOPS);
     expect(path).not.toBeNull();
     expect(path!.length - 1).toBe(1);
+    assertPathIsValid(path!, g);
+  });
+
+  it("finds a 1-hop club path for Griezmann–Lemar via Atlético", () => {
+    expect(hasDirectLink(g, GRIEZMANN, LEMAR)).toBe(true);
+    const path = findShortestPath(GRIEZMANN, LEMAR, g, MAX_HOPS);
+    expect(path).not.toBeNull();
+    expect(path!.length - 1).toBe(1);
+    expect(path![0].entityId).toBe(ATLETICO);
+    assertPathIsValid(path!, g);
+  });
+
+  it("finds a 1-hop national-team path for Haaland–Ødegaard via Norway", () => {
+    expect(hasDirectLink(g, HAALAND, ODEGAARD)).toBe(true);
+    const path = findShortestPath(HAALAND, ODEGAARD, g, MAX_HOPS);
+    expect(path).not.toBeNull();
+    expect(path!.length - 1).toBe(1);
+    expect(path![0].entityId).toBe(NORWAY);
     assertPathIsValid(path!, g);
   });
 
@@ -86,11 +118,6 @@ describe("findShortestPath on the real dataset", () => {
 
   it("returns null for unknown player ids", () => {
     expect(findShortestPath("nope", MESSI, g, MAX_HOPS)).toBeNull();
-  });
-
-  it("agrees with getAllTeammateLinks on direct neighbors", () => {
-    const links = getAllTeammateLinks(g, RAMOS);
-    expect(links.get(BELLINGHAM)).toBe(REAL_MADRID);
   });
 });
 
@@ -106,8 +133,18 @@ describe("findShortestPath null-handling (synthetic graphs)", () => {
         { id: "E2", name: "E2", type: "club", country: "" },
       ],
       affiliations: [
-        { playerId: "A", entityId: "E1", startDate: null, endDate: null },
-        { playerId: "B", entityId: "E2", startDate: null, endDate: null },
+        {
+          playerId: "A",
+          entityId: "E1",
+          startDate: "2020-01-01",
+          endDate: "2021-01-01",
+        },
+        {
+          playerId: "B",
+          entityId: "E2",
+          startDate: "2020-01-01",
+          endDate: "2021-01-01",
+        },
       ],
     };
     expect(findShortestPath("A", "B", new AffiliationGraph(data))).toBeNull();
@@ -119,6 +156,33 @@ describe("findShortestPath null-handling (synthetic graphs)", () => {
     const path = findShortestPath("P0", "P7", chain, 7);
     expect(path).not.toBeNull();
     expect(path!.length - 1).toBe(7);
+  });
+
+  it("rejects non-overlapping club stints even when entity is shared", () => {
+    const data: GraphData = {
+      players: [
+        { id: "A", name: "A", position: "X", dob: null },
+        { id: "B", name: "B", position: "X", dob: null },
+      ],
+      entities: [{ id: "CLUB", name: "Club", type: "club", country: "" }],
+      affiliations: [
+        {
+          playerId: "A",
+          entityId: "CLUB",
+          startDate: "2010-01-01",
+          endDate: "2015-01-01",
+        },
+        {
+          playerId: "B",
+          entityId: "CLUB",
+          startDate: "2020-01-01",
+          endDate: "2025-01-01",
+        },
+      ],
+    };
+    const graph = new AffiliationGraph(data);
+    expect(hasDirectLink(graph, "A", "B")).toBe(false);
+    expect(findShortestPath("A", "B", graph)).toBeNull();
   });
 });
 
@@ -143,8 +207,18 @@ describe("generateRandomPair", () => {
       ],
       entities: [{ id: "E1", name: "E1", type: "club", country: "" }],
       affiliations: [
-        { playerId: "A", entityId: "E1", startDate: null, endDate: null },
-        { playerId: "B", entityId: "E1", startDate: null, endDate: null },
+        {
+          playerId: "A",
+          entityId: "E1",
+          startDate: "2020-01-01",
+          endDate: "2022-01-01",
+        },
+        {
+          playerId: "B",
+          entityId: "E1",
+          startDate: "2020-06-01",
+          endDate: "2021-06-01",
+        },
       ],
     };
     expect(() => generateRandomPair(new AffiliationGraph(data))).toThrow(/no valid pair/);

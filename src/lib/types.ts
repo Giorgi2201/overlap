@@ -3,8 +3,9 @@
  * data-pipeline/build_affiliations.py).
  *
  * Dates stay as ISO "YYYY-MM-DD" strings for the same reasons as before
- * (JSON fidelity, sortability, no timezone pitfalls). They are display
- * metadata on club affiliations only — link validity ignores them.
+ * (JSON fidelity, sortability, no timezone pitfalls). Club affiliation
+ * dates gate teammate links; national-team affiliations typically have
+ * null dates and link by shared entity only.
  */
 
 export type EntityType = "club" | "national_team";
@@ -19,8 +20,6 @@ export interface Player {
   highestMarketValue?: number;
   /** Senior international caps — fallback fame signal when MV is missing. */
   internationalCaps?: number;
-  /** Transfermarkt portrait URL, when available. */
-  imageUrl?: string | null;
 }
 
 export interface Entity {

@@ -1,8 +1,17 @@
 /**
  * In-memory index over players / entities / affiliations.
+ *
+ * Teammate edges:
+ * - clubs: any pair of stints at that club with >= 30-day date overlap
+ * - national teams: any shared affiliation (no dates)
  */
 
 import type { Affiliation, Entity, GraphData, Player } from "./types";
+import {
+  MIN_OVERLAP_DAYS,
+  affiliationsLink,
+  clubAffiliationsOverlap,
+} from "./overlap";
 import graphData from "../data/graph-data.json";
 
 /** One directed teammate edge: neighbor linked via a specific entity. */
@@ -11,6 +20,14 @@ export interface TeammateEdge {
   entityId: string;
 }
 
+/**
+ * Far-future asOf so open-ended club tenures count as currently overlapping
+ * indefinitely. Shared by adjacency and getTeammates so pathfinding and UI
+ * agree (two current squadmates link even if they've only overlapped <30 days
+ * so far — they will keep overlapping).
+ */
+export const OPEN_ENDED_AS_OF = new Date(Date.UTC(9999, 0, 1));
+
 export class AffiliationGraph {
   readonly players: Map<string, Player>;
   readonly entities: Map<string, Entity>;
@@ -18,7 +35,7 @@ export class AffiliationGraph {
 
   private readonly byEntity: Map<string, Affiliation[]>;
   private readonly byPlayer: Map<string, Affiliation[]>;
-  /** Lazy: playerId -> edges. Built once under the share-any-entity rule. */
+  /** Lazy: playerId -> edges under the mixed club/NT rule. */
   private adjacency: Map<string, TeammateEdge[]> | null = null;
 
   constructor(data: GraphData) {
@@ -34,23 +51,41 @@ export class AffiliationGraph {
   }
 
   /**
-   * Precomputed undirected teammate graph: two players are linked if they
-   * share any entity (club or national team), regardless of dates.
+   * Precomputed undirected teammate graph under the mixed connection rule.
    */
   getTeammateAdjacency(): Map<string, TeammateEdge[]> {
     if (this.adjacency) return this.adjacency;
     const adj = new Map<string, TeammateEdge[]>();
     for (const playerId of this.players.keys()) adj.set(playerId, []);
 
-    for (const [, entityAffs] of this.byEntity) {
-      const playerIds = [...new Set(entityAffs.map((a) => a.playerId))];
-      for (let i = 0; i < playerIds.length; i++) {
-        for (let j = i + 1; j < playerIds.length; j++) {
-          const a = playerIds[i];
-          const b = playerIds[j];
-          const entityId = entityAffs[0].entityId;
-          adj.get(a)!.push({ neighborId: b, entityId });
-          adj.get(b)!.push({ neighborId: a, entityId });
+    for (const [entityId, entityAffs] of this.byEntity) {
+      const entity = this.entities.get(entityId);
+      if (!entity) continue;
+
+      if (entity.type === "national_team") {
+        const playerIds = [...new Set(entityAffs.map((a) => a.playerId))];
+        for (let i = 0; i < playerIds.length; i++) {
+          for (let j = i + 1; j < playerIds.length; j++) {
+            const a = playerIds[i];
+            const b = playerIds[j];
+            adj.get(a)!.push({ neighborId: b, entityId });
+            adj.get(b)!.push({ neighborId: a, entityId });
+          }
+        }
+        continue;
+      }
+
+      // Club: compare every pair of stints (multi-stint support).
+      for (let i = 0; i < entityAffs.length; i++) {
+        const a = entityAffs[i];
+        for (let j = i + 1; j < entityAffs.length; j++) {
+          const b = entityAffs[j];
+          if (a.playerId === b.playerId) continue;
+          if (!clubAffiliationsOverlap(a, b, MIN_OVERLAP_DAYS, OPEN_ENDED_AS_OF)) {
+            continue;
+          }
+          adj.get(a.playerId)!.push({ neighborId: b.playerId, entityId });
+          adj.get(b.playerId)!.push({ neighborId: a.playerId, entityId });
         }
       }
     }
@@ -75,7 +110,6 @@ export class AffiliationGraph {
       .map((id) => this.entities.get(id)!)
       .filter(Boolean)
       .sort((a, b) => {
-        // Clubs first, then national teams; alpha within type.
         if (a.type !== b.type) return a.type === "club" ? -1 : 1;
         return a.name.localeCompare(b.name);
       });
@@ -106,17 +140,30 @@ export class AffiliationGraph {
   }
 
   /**
-   * Every OTHER player affiliated with `entityId` (any dates).
+   * Every OTHER player linked to `playerId` via `entityId` under the mixed
+   * rule. For clubs, any pairing of multi-stints that overlaps counts.
    */
-  getTeammates(playerId: string, entityId: string): Player[] {
-    const own = (this.byPlayer.get(playerId) ?? []).some(
+  getTeammates(
+    playerId: string,
+    entityId: string,
+    minDays: number = MIN_OVERLAP_DAYS,
+    asOf: Date = OPEN_ENDED_AS_OF,
+  ): Player[] {
+    const entity = this.entities.get(entityId);
+    if (!entity) return [];
+
+    const own = (this.byPlayer.get(playerId) ?? []).filter(
       (a) => a.entityId === entityId,
     );
-    if (!own) return [];
+    if (own.length === 0) return [];
 
     const mateIds = new Set<string>();
     for (const other of this.byEntity.get(entityId) ?? []) {
-      if (other.playerId !== playerId) mateIds.add(other.playerId);
+      if (other.playerId === playerId || mateIds.has(other.playerId)) continue;
+      const linked = own.some((mine) =>
+        affiliationsLink(mine, other, entity.type, minDays, asOf),
+      );
+      if (linked) mateIds.add(other.playerId);
     }
     return [...mateIds]
       .map((id) => this.players.get(id)!)
