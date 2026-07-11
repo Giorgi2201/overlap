@@ -5,52 +5,37 @@
   place-items: center;
   padding: clamp(1.5rem, 4vw, 3rem);
   overflow: hidden;
+  background: var(--void);
 }
 
-.ambient {
+.media {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.55;
+  overflow: hidden;
+  z-index: 0;
 }
 
-.ambientSvg {
+.video {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
 }
 
-.ambPath {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: ambDraw 4.5s var(--ease-circuit) infinite;
-}
-
-.ambNode {
-  fill: color-mix(in srgb, var(--glass) 70%, transparent);
-  stroke: color-mix(in srgb, var(--signal) 45%, transparent);
-  stroke-width: 1.5;
-}
-
-.ambN1,
-.ambN5 {
-  stroke: color-mix(in srgb, var(--beacon) 50%, transparent);
-}
-
-.ambEndpoint {
-  stroke: color-mix(in srgb, var(--beacon) 50%, transparent);
-}
-
-.ambN2 {
-  animation: ambDrift 7s ease-in-out infinite;
-}
-
-.ambN3 {
-  animation: ambDrift 9s ease-in-out infinite reverse;
-}
-
-.ambN4 {
-  animation: ambDrift 8s ease-in-out 0.5s infinite;
+/* Void navy scrim — keeps hero copy readable over any frame of the loop. */
+.scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--void) 72%, transparent) 0%,
+      color-mix(in srgb, var(--void) 82%, transparent) 45%,
+      color-mix(in srgb, var(--void) 88%, transparent) 100%
+    );
 }
 
 .content {
@@ -243,48 +228,7 @@
   background: color-mix(in srgb, var(--dead) 28%, transparent);
 }
 
-@keyframes ambDraw {
-  0% {
-    stroke-dashoffset: 1;
-    opacity: 0.35;
-  }
-  35% {
-    stroke-dashoffset: 0;
-    opacity: 1;
-  }
-  70% {
-    stroke-dashoffset: 0;
-    opacity: 0.85;
-  }
-  100% {
-    stroke-dashoffset: -0.15;
-    opacity: 0.35;
-  }
-}
-
-@keyframes ambDrift {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .ambPath,
-  .ambN2,
-  .ambN3,
-  .ambN4 {
-    animation: none;
-  }
-
-  .ambPath {
-    stroke-dashoffset: 0;
-    opacity: 0.7;
-  }
-
   .cta:hover {
     transform: none;
   }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "./StartScreen.module.css";
 
 interface StartScreenProps {
@@ -9,11 +9,53 @@ interface StartScreenProps {
 
 export function StartScreen({ level, onStart, onResetProgress }: StartScreenProps) {
   const [confirmReset, setConfirmReset] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReduceMotion(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || reduceMotion) return;
+    // iOS / Safari: muted + playsInline required; play() can still reject.
+    video.muted = true;
+    const attempt = video.play();
+    if (attempt && typeof attempt.catch === "function") {
+      attempt.catch(() => {
+        // Autoplay blocked — leave paused; void scrim still covers the screen.
+      });
+    }
+  }, [reduceMotion]);
 
   return (
     <main className={styles.screen}>
-      <div className={styles.ambient} aria-hidden="true">
-        <AmbientCircuit />
+      <div className={styles.media} aria-hidden="true">
+        {!reduceMotion ? (
+          <video
+            ref={videoRef}
+            className={styles.video}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+          >
+            {/*
+              Drop /public/hero-bg.webm and add
+              <source src="/hero-bg.webm" type="video/webm" /> above the MP4
+              when a WebM encode is available. Shipping MP4-only for now so
+              we don't 404 the preferred format on every visit.
+            */}
+            <source src="/hero-bg.mp4" type="video/mp4" />
+          </video>
+        ) : null}
+        <div className={styles.scrim} />
       </div>
 
       <div className={styles.content}>
@@ -72,46 +114,5 @@ export function StartScreen({ level, onStart, onResetProgress }: StartScreenProp
         </div>
       </div>
     </main>
-  );
-}
-
-/** Soft looping preview of nodes completing a circuit — decorative only. */
-function AmbientCircuit() {
-  return (
-    <svg className={styles.ambientSvg} viewBox="0 0 800 420" fill="none">
-      <defs>
-        <linearGradient id="amb-grad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="var(--signal)" stopOpacity="0.15" />
-          <stop offset="50%" stopColor="var(--signal)" stopOpacity="0.9" />
-          <stop offset="100%" stopColor="var(--beacon)" stopOpacity="0.55" />
-        </linearGradient>
-        <filter id="amb-glow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="4" result="b" />
-          <feMerge>
-            <feMergeNode in="b" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
-      <path
-        className={styles.ambPath}
-        d="M120 210 C 220 120, 320 300, 400 210 C 480 120, 580 300, 680 210"
-        stroke="url(#amb-grad)"
-        strokeWidth="2"
-        filter="url(#amb-glow)"
-        pathLength={1}
-      />
-      <g className={styles.ambN2}>
-        <circle className={styles.ambNode} cx="280" cy="165" r="12" />
-      </g>
-      <g className={styles.ambN3}>
-        <circle className={styles.ambNode} cx="400" cy="210" r="16" />
-      </g>
-      <g className={styles.ambN4}>
-        <circle className={styles.ambNode} cx="520" cy="255" r="12" />
-      </g>
-      <circle className={`${styles.ambNode} ${styles.ambEndpoint}`} cx="120" cy="210" r="18" />
-      <circle className={`${styles.ambNode} ${styles.ambEndpoint}`} cx="680" cy="210" r="18" />
-    </svg>
   );
 }
