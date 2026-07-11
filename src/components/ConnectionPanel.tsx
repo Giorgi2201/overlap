@@ -216,7 +216,7 @@ export function ConnectionPanel({
 
   return (
     <div className={styles.panel}>
-      <p className={styles.prompt}>{prompt}</p>
+      {prompt ? <p className={styles.prompt}>{prompt}</p> : null}
 
       <div
         className={[

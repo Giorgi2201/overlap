@@ -91,23 +91,23 @@ export function StartScreen({ level, onStart, onResetProgress }: StartScreenProp
       </div>
 
       <div className={styles.content}>
-        <p className={styles.eyebrow}>Football · shared clubs & nations</p>
+        <p className={styles.eyebrow}>Football · timed clubs · any-era nations</p>
         <h1 className={styles.brand}>Overlap</h1>
         <p className={styles.levelPill}>
           <span className={styles.levelKey}>Level</span>
           <span className={styles.levelVal}>{level}</span>
         </p>
         <p className={styles.lede}>
-          Two players. Build a chain through clubs or national teams they
-          actually represented — not just names on a Wikipedia list.
+          Connect two footballers through people who were genuinely teammates —
+          same club, same window of time.
         </p>
         <p className={styles.detail}>
-          Pick an entity, then a teammate who shared it. Keep going until you
-          reach the target. Dead ends are marked so you never walk into a wall
-          blind.
+          Club links only count when their tenures overlap. National teams are
+          looser: any shared side works, era optional. Dead ends stay marked so
+          you never walk into a wall blind.
         </p>
         <button type="button" className={styles.cta} onClick={onStart}>
-          New puzzle
+          {level > 1 ? "Continue" : "New puzzle"}
         </button>
 
         <div className={styles.resetZone}>

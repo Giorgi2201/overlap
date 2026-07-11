@@ -37,7 +37,8 @@
 }
 
 .compact .club,
-.compact .nationalTeam {
+.compact .nationalTeam,
+.compact .nationalTeamEmpty {
   font-size: 0.72rem;
 }
 
@@ -147,6 +148,24 @@
   font-size: 0.7rem;
   letter-spacing: 0.02em;
   color: color-mix(in srgb, var(--beacon) 75%, var(--muted));
+  /* One-line slot so missing NT doesn't shrink the card vs a peer with NT. */
+  min-height: calc(1.3em);
+}
+
+.nationalTeamEmpty {
+  display: block;
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  line-height: 1.3;
+  min-height: calc(1.3em);
+  visibility: hidden;
+  user-select: none;
+  pointer-events: none;
+}
+
+.compact .nationalTeamEmpty {
+  min-height: calc(1.3em);
 }
 
 .hint {

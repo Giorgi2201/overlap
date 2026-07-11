@@ -36,6 +36,21 @@ function EntityLine({
   );
 }
 
+/**
+ * Always occupies the national-team row so start/target cards stay the same
+ * height whether or not the player has an NT affiliation in our data.
+ */
+function NationalTeamSlot({ name }: { name?: string }) {
+  if (name) {
+    return <EntityLine name={name} kind="national_team" />;
+  }
+  return (
+    <span className={styles.nationalTeamEmpty} aria-hidden="true">
+      &nbsp;
+    </span>
+  );
+}
+
 export function PlayerCard({
   name,
   position,
@@ -83,9 +98,7 @@ export function PlayerCard({
         </span>
         {position ? <span className={styles.meta}>{position}</span> : null}
         {club ? <EntityLine name={club} kind="club" /> : null}
-        {nationalTeam ? (
-          <EntityLine name={nationalTeam} kind="national_team" />
-        ) : null}
+        <NationalTeamSlot name={nationalTeam} />
         <span
           className={[styles.hint, interactive ? "" : styles.hintHidden]
             .filter(Boolean)

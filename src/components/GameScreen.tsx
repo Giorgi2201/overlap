@@ -151,7 +151,7 @@ export function GameScreen({
   };
 
   const prompt = won
-    ? "Circuit closed."
+    ? ""
     : state.expanded === null
       ? "Open the start player to begin the circuit."
       : state.expanded.kind === "entities"
@@ -223,7 +223,6 @@ export function GameScreen({
           <p className={`mono ${styles.winStat}`}>
             solved in {hopCount} {hopCount === 1 ? "hop" : "hops"} · level{" "}
             {state.level}
-            {winReveal?.kind === "optimal" ? " · optimal path" : ""}
           </p>
           {winReveal?.kind === "shorter_exists" ? (
             <div className={styles.shortestReveal}>

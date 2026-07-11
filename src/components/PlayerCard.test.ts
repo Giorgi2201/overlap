@@ -25,10 +25,11 @@ describe("PlayerCard text-only layout", () => {
     expect(css).not.toMatch(/\.avatar\s*\{/);
   });
 
-  it("keeps matched content-sized cards (no column stretch)", () => {
+  it("keeps matched content-sized cards with a reserved NT row", () => {
     expect(css).toMatch(/\.card\s*\{[^}]*height:\s*fit-content/s);
     expect(css).toMatch(/\.compact\s*\{[^}]*height:\s*fit-content/s);
     expect(css).toMatch(/\.hintHidden\s*\{/);
+    expect(css).toMatch(/\.nationalTeamEmpty\s*\{/);
 
     const screenCss = readFileSync(join(here, "GameScreen.module.css"), "utf8");
     expect(screenCss).toMatch(/\.screen\s*\{[^}]*overflow:\s*hidden/s);
