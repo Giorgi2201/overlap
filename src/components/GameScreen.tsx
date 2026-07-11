@@ -162,6 +162,7 @@ export function GameScreen({
             name={startPlayer?.name ?? "—"}
             position={startPlayer?.position}
             club={startClub?.name}
+            imageUrl={startPlayer?.imageUrl}
             role="start"
             active={chainTailId === startPlayer?.id && !won}
             disabled={won || chainTailId !== startPlayer?.id}
@@ -188,6 +189,7 @@ export function GameScreen({
             name={targetPlayer?.name ?? "—"}
             position={targetPlayer?.position}
             club={targetClub?.name}
+            imageUrl={targetPlayer?.imageUrl}
             role="target"
             won={won}
           />

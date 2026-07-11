@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useTilt } from "../hooks/useTilt";
 import styles from "./PlayerCard.module.css";
 
@@ -6,6 +7,8 @@ interface PlayerCardProps {
   position?: string;
   /** Current club name shown under the player. */
   club?: string;
+  /** Transfermarkt portrait URL — optional; falls back to initials. */
+  imageUrl?: string | null;
   role: "start" | "target";
   active?: boolean;
   won?: boolean;
@@ -15,10 +18,59 @@ interface PlayerCardProps {
   compact?: boolean;
 }
 
+/** Up to two initials from a display name (fallback avatar). */
+export function playerInitials(name: string): string {
+  const parts = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function Avatar({
+  name,
+  imageUrl,
+  role,
+}: {
+  name: string;
+  imageUrl?: string | null;
+  role: "start" | "target";
+}) {
+  const [failed, setFailed] = useState(false);
+  const showImg = Boolean(imageUrl) && !failed;
+  const initials = playerInitials(name);
+
+  return (
+    <span
+      className={[
+        styles.avatar,
+        role === "target" ? styles.avatarTarget : styles.avatarStart,
+      ].join(" ")}
+      aria-hidden="true"
+    >
+      {showImg ? (
+        <img
+          className={styles.avatarImg}
+          src={imageUrl!}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span className={styles.avatarInitials}>{initials}</span>
+      )}
+    </span>
+  );
+}
+
 export function PlayerCard({
   name,
   position,
   club,
+  imageUrl,
   role,
   active = false,
   won = false,
@@ -53,19 +105,26 @@ export function PlayerCard({
         disabled={!interactive}
         aria-label={`${role === "start" ? "Start" : "Target"}: ${name}${club ? `, ${club}` : ""}`}
       >
-        <span className={styles.role}>{role === "start" ? "Start" : "Target"}</span>
-        <span className={styles.name} title={name}>
-          {name}
-        </span>
-        {position ? <span className={styles.meta}>{position}</span> : null}
-        {club ? (
-          <span className={styles.club} title={club}>
-            {club}
+        <span className={styles.top}>
+          <Avatar name={name} imageUrl={imageUrl} role={role} />
+          <span className={styles.copy}>
+            <span className={styles.role}>
+              {role === "start" ? "Start" : "Target"}
+            </span>
+            <span className={styles.name} title={name}>
+              {name}
+            </span>
+            {position ? <span className={styles.meta}>{position}</span> : null}
+            {club ? (
+              <span className={styles.club} title={club}>
+                {club}
+              </span>
+            ) : null}
+            {interactive ? (
+              <span className={styles.hint}>Tap to open</span>
+            ) : null}
           </span>
-        ) : null}
-        {interactive ? (
-          <span className={styles.hint}>Tap to open</span>
-        ) : null}
+        </span>
       </button>
     </div>
   );

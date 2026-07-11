@@ -19,17 +19,30 @@
 }
 
 .compact .hit {
-  gap: 0.2rem;
-  padding: 0.75rem 0.85rem 0.8rem;
+  padding: 0.65rem 0.7rem 0.7rem;
+}
+
+.compact .avatar {
+  width: 2.35rem;
+  height: 2.35rem;
 }
 
 .compact .name {
-  font-size: 1.05rem;
+  font-size: 0.98rem;
 }
 
 .compact .hint {
-  margin-top: 0.25rem;
+  margin-top: 0.2rem;
+  font-size: 0.68rem;
+}
+
+.compact .meta {
+  font-size: 0.75rem;
+}
+
+.compact .club {
   font-size: 0.7rem;
+  -webkit-line-clamp: 1;
 }
 
 .start {
@@ -63,11 +76,9 @@
 }
 
 .hit {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  display: block;
   width: 100%;
-  padding: 1.15rem 1.2rem 1.25rem;
+  padding: 0.95rem 1rem 1rem;
   border: 0;
   background: transparent;
   text-align: left;
@@ -78,9 +89,68 @@
   cursor: default;
 }
 
+/* Side-by-side avatar + copy — keeps card height ≈ previous footprint. */
+.top {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.avatar {
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--glass) 70%, var(--void));
+  border: 1.5px solid color-mix(in srgb, var(--signal) 30%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--void) 40%, transparent),
+    0 0 14px color-mix(in srgb, var(--signal) 18%, transparent);
+  transform: translateZ(12px);
+}
+
+.avatarStart {
+  border-color: color-mix(in srgb, var(--signal) 45%, transparent);
+}
+
+.avatarTarget {
+  border-color: color-mix(in srgb, var(--beacon) 50%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--void) 40%, transparent),
+    0 0 14px color-mix(in srgb, var(--beacon) 22%, transparent);
+}
+
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+}
+
+.avatarInitials {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  line-height: 1;
+}
+
 .role {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
@@ -96,7 +166,7 @@
 
 .name {
   font-family: var(--font-display);
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 600;
   line-height: 1.15;
   letter-spacing: -0.03em;
@@ -104,7 +174,7 @@
 }
 
 .meta {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--muted);
 }
 
@@ -113,17 +183,16 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
-  margin-top: 0.15rem;
   font-family: var(--font-body);
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   line-height: 1.25;
   color: color-mix(in srgb, var(--text) 78%, var(--muted));
   word-break: break-word;
 }
 
 .hint {
-  margin-top: 0.45rem;
-  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
   color: color-mix(in srgb, var(--signal) 75%, var(--muted));
 }
 
@@ -149,7 +218,12 @@
   }
 
   .name {
-    font-size: 1.1rem;
+    font-size: 0.95rem;
+  }
+
+  .avatar {
+    width: 2.25rem;
+    height: 2.25rem;
   }
 }
 
