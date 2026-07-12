@@ -116,27 +116,35 @@ export class AffiliationGraph {
   }
 
   /**
-   * Current club for display on player cards: open-ended club affiliation
+   * Current/listed club affiliation for card display: open-ended club stint
    * if any, else most recent club affiliation by end/start date.
    */
-  getCurrentClub(playerId: string): Entity | null {
+  getCurrentClubAffiliation(playerId: string): Affiliation | null {
     const clubs = (this.byPlayer.get(playerId) ?? []).filter((a) => {
       const e = this.entities.get(a.entityId);
       return e?.type === "club";
     });
     if (clubs.length === 0) return null;
     const open = clubs.filter((a) => a.endDate === null);
-    const pick =
-      open.length > 0
-        ? open.reduce((a, b) =>
-            (a.startDate ?? "") >= (b.startDate ?? "") ? a : b,
-          )
-        : clubs.reduce((a, b) => {
-            const aEnd = a.endDate ?? a.startDate ?? "";
-            const bEnd = b.endDate ?? b.startDate ?? "";
-            return aEnd >= bEnd ? a : b;
-          });
-    return this.entities.get(pick.entityId) ?? null;
+    if (open.length > 0) {
+      return open.reduce((a, b) =>
+        (a.startDate ?? "") >= (b.startDate ?? "") ? a : b,
+      );
+    }
+    return clubs.reduce((a, b) => {
+      const aEnd = a.endDate ?? a.startDate ?? "";
+      const bEnd = b.endDate ?? b.startDate ?? "";
+      return aEnd >= bEnd ? a : b;
+    });
+  }
+
+  /**
+   * Current club for display on player cards: open-ended club affiliation
+   * if any, else most recent club affiliation by end/start date.
+   */
+  getCurrentClub(playerId: string): Entity | null {
+    const pick = this.getCurrentClubAffiliation(playerId);
+    return pick ? (this.entities.get(pick.entityId) ?? null) : null;
   }
 
   /**

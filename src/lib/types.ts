@@ -20,6 +20,8 @@ export interface Player {
   highestMarketValue?: number;
   /** Senior international caps — fallback fame signal when MV is missing. */
   internationalCaps?: number;
+  /** Transfermarkt portrait URL when available. */
+  imageUrl?: string | null;
 }
 
 export interface Entity {

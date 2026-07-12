@@ -1,7 +1,8 @@
 .card {
   position: relative;
   width: min(100%, 220px);
-  height: fit-content;
+  /* Fixed footprint so start/target stay matched regardless of text wrap. */
+  height: 20.5rem;
   align-self: flex-start;
   border-radius: var(--radius-card);
   background: var(--glass-fill);
@@ -13,40 +14,15 @@
     0 18px 40px color-mix(in srgb, var(--void) 65%, transparent);
   transform-style: preserve-3d;
   will-change: transform;
-}
-
-/* Content-sized compact card — shared by start + target. */
-.compact {
-  width: 100%;
-  max-width: 100%;
-  height: fit-content;
+  overflow: hidden;
   box-sizing: border-box;
 }
 
-.compact .hit {
-  gap: 0.18rem;
-  padding: 0.65rem 0.7rem 0.65rem;
-}
-
-.compact .name {
-  font-size: 0.98rem;
-}
-
-.compact .meta {
-  font-size: 0.75rem;
-}
-
-.compact .club,
-.compact .nationalTeam,
-.compact .nationalTeamEmpty {
-  font-size: 0.72rem;
-}
-
-.compact .hint {
-  margin-top: 0.2rem;
-  font-size: 0.68rem;
-  min-height: 1rem;
-  line-height: 1rem;
+/* Game-board cards: taller image-led layout; panel yields remaining space. */
+.compact {
+  width: 100%;
+  max-width: 100%;
+  height: clamp(17.5rem, 42svh, 22rem);
 }
 
 .start {
@@ -83,11 +59,10 @@
 .hit {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 0.28rem;
+  align-items: stretch;
   width: 100%;
-  height: auto;
-  padding: 0.95rem 1rem 1rem;
+  height: 100%;
+  padding: 0;
   border: 0;
   background: transparent;
   text-align: left;
@@ -98,12 +73,98 @@
   cursor: default;
 }
 
+/* ---- Top: inset framed portrait ---- */
+
+.photo {
+  flex: 1 1 auto;
+  min-height: 55%;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  /* Clear breathing room from card chrome — intentional framed portrait. */
+  padding: 0.72rem 0.72rem 0.4rem;
+  box-sizing: border-box;
+  background: transparent;
+}
+
+.photoFrame {
+  position: relative;
+  /* Portrait slot: height fills the photo plane; width follows 2:3 so
+     Transfermarkt headshots aren't force-zoomed by a landscape frame. */
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  aspect-ratio: 2 / 3;
+  flex: 0 1 auto;
+  align-self: center;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: calc(var(--radius-card) - 6px);
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--glass) 70%, transparent),
+      color-mix(in srgb, var(--void) 55%, var(--glass-fill))
+    );
+  border: 2px solid transparent;
+}
+
+.photoFrameStart {
+  border-color: color-mix(in srgb, var(--signal) 72%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--signal) 22%, transparent),
+    0 0 18px color-mix(in srgb, var(--signal) 28%, transparent);
+}
+
+.photoFrameTarget {
+  border-color: color-mix(in srgb, var(--beacon) 72%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--beacon) 22%, transparent),
+    0 0 18px color-mix(in srgb, var(--beacon) 28%, transparent);
+}
+
+.photoImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 12%;
+  display: block;
+  filter: brightness(1.05) contrast(1.04);
+}
+
+.photoInitials {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 4.5vw, 2.2rem);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--text) 55%, var(--muted));
+  user-select: none;
+}
+
+/* ---- Bottom half: compressed text stack ---- */
+
+.body {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.08rem;
+  padding: 0.42rem 0.55rem 0.4rem;
+  min-height: 0;
+}
+
 .role {
   font-family: var(--font-mono);
-  font-size: 0.65rem;
+  font-size: 0.55rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
+  line-height: 1.1;
 }
 
 .start .role {
@@ -116,65 +177,85 @@
 
 .name {
   font-family: var(--font-display);
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.12;
   letter-spacing: -0.03em;
   color: var(--text);
   word-break: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 
 .meta {
-  font-size: 0.8rem;
+  font-size: 0.68rem;
+  line-height: 1.15;
   color: var(--muted);
 }
 
-/* Full entity names — wrap, no ellipsis truncation. */
 .club,
 .nationalTeam {
-  display: block;
   width: 100%;
   font-family: var(--font-body);
-  font-size: 0.78rem;
-  line-height: 1.3;
+  font-size: 0.66rem;
+  line-height: 1.2;
   color: color-mix(in srgb, var(--text) 78%, var(--muted));
   word-break: break-word;
   overflow-wrap: anywhere;
-  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.clubBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.02rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.clubYears {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  color: var(--muted);
 }
 
 .nationalTeam {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.62rem;
   letter-spacing: 0.02em;
   color: color-mix(in srgb, var(--beacon) 75%, var(--muted));
-  /* One-line slot so missing NT doesn't shrink the card vs a peer with NT. */
-  min-height: calc(1.3em);
+  min-height: calc(1.2em);
+  -webkit-line-clamp: 1;
 }
 
 .nationalTeamEmpty {
   display: block;
   width: 100%;
   font-family: var(--font-mono);
-  font-size: 0.7rem;
-  line-height: 1.3;
-  min-height: calc(1.3em);
+  font-size: 0.62rem;
+  line-height: 1.2;
+  min-height: calc(1.2em);
   visibility: hidden;
   user-select: none;
   pointer-events: none;
 }
 
-.compact .nationalTeamEmpty {
-  min-height: calc(1.3em);
-}
-
 .hint {
-  margin-top: 0.25rem;
-  font-size: 0.72rem;
+  margin-top: 0.12rem;
+  font-size: 0.62rem;
+  line-height: 1;
+  min-height: 0.85rem;
   color: color-mix(in srgb, var(--signal) 75%, var(--muted));
 }
 
-/* Keeps start/target the same height when target has no CTA. */
 .hintHidden {
   visibility: hidden;
   user-select: none;
@@ -196,14 +277,55 @@
   }
 }
 
-@media (max-width: 720px) {
-  .card {
+/* Mobile: taller image-led cards; panel keeps the leftover below. */
+@media (max-width: 860px) {
+  .card,
+  .compact {
     width: 100%;
-    height: fit-content;
+    height: clamp(12.5rem, 36svh, 15.5rem);
   }
 
-  .compact .name {
-    font-size: 0.92rem;
+  .photo {
+    min-height: 52%;
+    padding: 0.55rem 0.55rem 0.32rem;
+  }
+
+  .photoFrame {
+    border-radius: calc(var(--radius-card) - 8px);
+    aspect-ratio: 2 / 3;
+  }
+
+  .body {
+    gap: 0.04rem;
+    padding: 0.32rem 0.45rem 0.3rem;
+  }
+
+  .name {
+    font-size: 0.82rem;
+  }
+
+  .meta {
+    font-size: 0.62rem;
+  }
+
+  .club,
+  .nationalTeam,
+  .nationalTeamEmpty {
+    font-size: 0.58rem;
+  }
+
+  .clubYears {
+    font-size: 0.58rem;
+  }
+
+  .hint {
+    margin-top: 0.06rem;
+    font-size: 0.58rem;
+    min-height: 0.75rem;
+  }
+
+  .photoInitials {
+    font-size: 1.45rem;
   }
 }
 

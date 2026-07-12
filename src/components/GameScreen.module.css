@@ -73,10 +73,10 @@
 
 .board {
   display: grid;
-  grid-template-columns: minmax(140px, 190px) minmax(0, 1fr) minmax(140px, 190px);
+  grid-template-columns: minmax(160px, 220px) minmax(0, 1fr) minmax(160px, 220px);
   grid-template-areas: "start panel target";
   gap: 0.75rem;
-  /* Panel can stretch; cards must NOT — they hug content. */
+  /* Cards hug a fixed taller footprint; panel fills the leftover height. */
   align-items: start;
   flex: 1;
   min-height: 0;

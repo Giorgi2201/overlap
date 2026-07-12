@@ -44,6 +44,10 @@ export function GameScreen({
   const targetPlayer = graph.players.get(state.targetPlayerId!);
   const startClub = graph.getCurrentClub(state.startPlayerId!);
   const targetClub = graph.getCurrentClub(state.targetPlayerId!);
+  const targetClubAff = graph.getCurrentClubAffiliation(state.targetPlayerId!);
+  const targetClubYears = targetClubAff
+    ? formatAffiliationYears(targetClubAff)
+    : null;
   const startNationalTeam = graph
     .getEntitiesForPlayer(state.startPlayerId!)
     .find((e) => e.type === "national_team");
@@ -181,6 +185,7 @@ export function GameScreen({
             position={startPlayer?.position}
             club={startClub?.name}
             nationalTeam={startNationalTeam?.name}
+            imageUrl={startPlayer?.imageUrl}
             role="start"
             active={chainTailId === startPlayer?.id && !won}
             disabled={won || chainTailId !== startPlayer?.id}
@@ -207,7 +212,9 @@ export function GameScreen({
             name={targetPlayer?.name ?? "—"}
             position={targetPlayer?.position}
             club={targetClub?.name}
+            clubYears={targetClubYears}
             nationalTeam={targetNationalTeam?.name}
+            imageUrl={targetPlayer?.imageUrl}
             role="target"
             won={won}
           />
