@@ -15,6 +15,12 @@
   box-sizing: border-box;
 }
 
+/* Reserve space for the floating BottomNav pill (height + float gap + safe-area). */
+.screenWithNav {
+  height: calc(100svh - var(--bottom-nav-total, 4.7rem));
+  max-height: calc(100svh - var(--bottom-nav-total, 4.7rem));
+}
+
 .topbar {
   display: flex;
   align-items: center;
@@ -115,35 +121,101 @@
   overflow: hidden;
 }
 
-.actions {
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
   display: flex;
+  align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  flex-shrink: 0;
-  padding-bottom: 0.15rem;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--void) 72%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  opacity: 0;
+  transition: opacity var(--dur-standard) var(--ease-motion);
 }
 
-.ghostBtn {
-  padding: 0.5rem 1rem;
+.modalBackdropOpen {
+  opacity: 1;
+}
+
+.modal {
+  width: min(100%, 20rem);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+  padding: 1rem 1.05rem 1.05rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--dead) 40%, transparent);
+  background: color-mix(in srgb, var(--dead) 8%, var(--glass-fill));
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--void) 55%, transparent);
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity var(--dur-standard) var(--ease-motion),
+    transform var(--dur-standard) var(--ease-motion);
+}
+
+.modalOpen {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.modalPrompt {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  color: var(--muted);
+  text-align: center;
+}
+
+.modalActions {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: 0.55rem;
+  width: 100%;
+}
+
+.modalCancel,
+.modalDanger {
+  min-height: 2.6rem;
+  padding: 0.55rem 1rem;
   border-radius: 999px;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.modalCancel {
   border: 1px solid color-mix(in srgb, var(--muted) 35%, transparent);
   background: transparent;
   color: var(--muted);
-  font-size: 0.88rem;
-  transition:
-    color var(--dur-soft) ease,
-    border-color var(--dur-soft) ease,
-    background var(--dur-soft) ease;
 }
 
-.ghostBtn:hover:not(:disabled) {
+.modalCancel:hover {
   color: var(--text);
   border-color: color-mix(in srgb, var(--muted) 55%, transparent);
-  background: color-mix(in srgb, var(--glass) 50%, transparent);
 }
 
-.ghostBtn:disabled {
-  opacity: 0.35;
+.modalDanger {
+  border: 1px solid color-mix(in srgb, var(--dead) 55%, transparent);
+  background: color-mix(in srgb, var(--dead) 18%, transparent);
+  color: var(--text);
+}
+
+.modalDanger:hover {
+  background: color-mix(in srgb, var(--dead) 28%, transparent);
+}
+
+/* Start / target cards: light slide+fade on puzzle mount */
+.cardEnterStart {
+  animation: cardInFromLeft var(--dur-standard) var(--ease-motion) both;
+}
+
+.cardEnterTarget {
+  animation: cardInFromRight var(--dur-standard) var(--ease-motion) both;
 }
 
 .win {
@@ -158,17 +230,28 @@
   border: 1px solid color-mix(in srgb, var(--beacon) 35%, transparent);
   box-shadow: 0 0 40px var(--beacon-glow);
   text-align: center;
-  animation: winIn var(--dur-circuit) var(--ease-circuit);
+  animation: winPanelIn var(--dur-standard) var(--ease-motion) both;
+}
+
+.winTitle,
+.winCopy,
+.winStat,
+.shortestReveal,
+.primaryBtn,
+.menuLink {
+  animation: winItemIn var(--dur-standard) var(--ease-motion) both;
 }
 
 .winTitle {
   font-size: 1.2rem;
   color: var(--beacon);
+  animation-delay: calc(1 * var(--stagger-step));
 }
 
 .winCopy {
   color: var(--text);
   font-size: 0.9rem;
+  animation-delay: calc(2 * var(--stagger-step));
 }
 
 .winStat {
@@ -176,6 +259,7 @@
   color: var(--muted);
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  animation-delay: calc(3 * var(--stagger-step));
 }
 
 .shortestReveal {
@@ -186,6 +270,7 @@
   width: min(100%, 36rem);
   max-width: 100%;
   margin: 0.15rem 0 0.1rem;
+  animation-delay: calc(4 * var(--stagger-step));
 }
 
 .shortestLabel {
@@ -216,6 +301,7 @@
   font-family: var(--font-display);
   font-weight: 600;
   box-shadow: 0 0 24px var(--beacon-glow);
+  animation-delay: calc(5 * var(--stagger-step));
 }
 
 .primaryBtn:hover {
@@ -233,20 +319,65 @@
   text-decoration-color: color-mix(in srgb, var(--muted) 35%, transparent);
   text-underline-offset: 3px;
   cursor: pointer;
+  animation-delay: calc(6 * var(--stagger-step));
 }
 
 .menuLink:hover {
   color: var(--muted);
 }
 
-@keyframes winIn {
+@keyframes cardInFromLeft {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateX(-14px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateX(0);
+  }
+}
+
+@keyframes cardInFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes winPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--beacon) 15%, transparent);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    box-shadow: 0 0 40px var(--beacon-glow);
+  }
+}
+
+@keyframes winItemIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fadeOnly {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
@@ -278,10 +409,59 @@
   .brand {
     font-size: 1rem;
   }
+
+  .modalBackdrop {
+    padding: 0.85rem;
+    align-items: flex-end;
+  }
+
+  .modal {
+    width: 100%;
+    max-width: 100%;
+    gap: 0.7rem;
+    padding: 1rem 0.95rem calc(1rem + env(safe-area-inset-bottom, 0px));
+    border-radius: 14px 14px 12px 12px;
+    transform: translateY(16px);
+  }
+
+  .modalOpen {
+    transform: translateY(0);
+  }
+
+  .modalActions {
+    gap: 0.65rem;
+  }
+
+  .modalCancel,
+  .modalDanger {
+    min-height: 2.85rem;
+    font-size: 0.92rem;
+  }
+
+  .modalActions .modalCancel,
+  .modalActions .modalDanger {
+    flex: 1 1 auto;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .win {
-    animation: none;
+  .cardEnterStart,
+  .cardEnterTarget,
+  .win,
+  .winTitle,
+  .winCopy,
+  .winStat,
+  .shortestReveal,
+  .primaryBtn,
+  .menuLink {
+    animation-name: fadeOnly;
+  }
+
+  .modal {
+    transform: none;
+  }
+
+  .modalOpen {
+    transform: none;
   }
 }

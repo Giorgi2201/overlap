@@ -49,7 +49,10 @@
     0 0 36px var(--beacon-glow),
     0 0 80px color-mix(in srgb, var(--beacon) 25%, transparent),
     0 18px 40px color-mix(in srgb, var(--void) 65%, transparent);
-  animation: beaconPulse 1.6s var(--ease-circuit) infinite;
+  animation:
+    winGlowRise var(--dur-standard) var(--ease-motion) both,
+    beaconPulse 1.6s var(--ease-motion) infinite;
+  animation-delay: 0s, var(--dur-standard);
 }
 
 .interactive {
@@ -259,6 +262,20 @@
 .hintHidden {
   visibility: hidden;
   user-select: none;
+}
+
+@keyframes winGlowRise {
+  from {
+    box-shadow:
+      0 0 14px color-mix(in srgb, var(--beacon) 20%, transparent),
+      0 18px 40px color-mix(in srgb, var(--void) 65%, transparent);
+  }
+  to {
+    box-shadow:
+      0 0 36px var(--beacon-glow),
+      0 0 80px color-mix(in srgb, var(--beacon) 25%, transparent),
+      0 18px 40px color-mix(in srgb, var(--void) 65%, transparent);
+  }
 }
 
 @keyframes beaconPulse {

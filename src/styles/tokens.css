@@ -23,10 +23,17 @@
   --font-body: "Inter", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
-  /* Motion */
-  --ease-circuit: cubic-bezier(0.22, 1, 0.36, 1);
-  --dur-circuit: 520ms;
-  --dur-soft: 220ms;
+  /* Motion — one curve, two durations for the polish language */
+  --ease-motion: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-quick: 180ms; /* micro-interactions, option/item entrances */
+  --dur-standard: 300ms; /* modals, cards, win arrival, pill mount */
+  --stagger-step: 24ms; /* per-item delay; cap via --stagger-cap in CSS */
+  --stagger-cap: 8; /* max stagger index → ~192ms even for huge grids */
+
+  /* Aliases / reserved */
+  --ease-circuit: var(--ease-motion); /* legacy name; same curve */
+  --dur-soft: var(--dur-quick); /* hover/focus micro transitions */
+  --dur-circuit: 520ms; /* signature line-draw / intentional longer beats only */
 
   /* Layout */
   --radius-card: 18px;

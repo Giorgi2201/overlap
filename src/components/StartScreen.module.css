@@ -133,9 +133,9 @@
   letter-spacing: -0.02em;
   box-shadow: 0 0 28px var(--signal-glow);
   transition:
-    background var(--dur-soft) ease,
-    box-shadow var(--dur-soft) ease,
-    transform var(--dur-soft) ease;
+    background var(--dur-quick) var(--ease-motion),
+    box-shadow var(--dur-quick) var(--ease-motion),
+    transform var(--dur-quick) var(--ease-motion);
 }
 
 .cta:hover {
@@ -162,7 +162,7 @@
   text-decoration-color: color-mix(in srgb, var(--muted) 35%, transparent);
   text-underline-offset: 3px;
   cursor: pointer;
-  transition: color var(--dur-soft) ease;
+  transition: color var(--dur-quick) var(--ease-motion);
 }
 
 .resetProgress:hover {

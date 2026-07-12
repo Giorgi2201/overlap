@@ -1,4 +1,11 @@
-import { useMemo, type Dispatch } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type TransitionEvent,
+} from "react";
 import type { AffiliationGraph } from "../lib/graph";
 import { getEntityOptions, getTeammateOptions } from "../lib/deadEnds";
 import { formatAffiliationYears } from "../lib/overlap";
@@ -11,6 +18,12 @@ import {
   type BreadcrumbChip,
   type OptionCard,
 } from "./ConnectionPanel";
+import {
+  BottomNav,
+  GiveUpIcon,
+  HomeIcon,
+  UndoIcon,
+} from "./BottomNav";
 import { PlayerCard } from "./PlayerCard";
 import styles from "./GameScreen.module.css";
 
@@ -20,6 +33,7 @@ interface GameScreenProps {
   dispatch: Dispatch<GameAction>;
   onNextLevel: () => void;
   onBackToMenu: () => void;
+  onResetProgress: () => void;
 }
 
 function chipKind(
@@ -39,7 +53,51 @@ export function GameScreen({
   dispatch,
   onNextLevel,
   onBackToMenu,
+  onResetProgress,
 }: GameScreenProps) {
+  /** Modal stays mounted through exit so fade/slide can finish. */
+  const [giveUpMounted, setGiveUpMounted] = useState(false);
+  const [giveUpOpen, setGiveUpOpen] = useState(false);
+  const resetAfterCloseRef = useRef(false);
+
+  const openGiveUp = () => {
+    resetAfterCloseRef.current = false;
+    setGiveUpMounted(true);
+  };
+
+  const closeGiveUp = (opts?: { reset?: boolean }) => {
+    if (opts?.reset) resetAfterCloseRef.current = true;
+    setGiveUpOpen(false);
+  };
+
+  // Enter: mount → paint closed → open (so CSS transitions run).
+  useEffect(() => {
+    if (!giveUpMounted) return;
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setGiveUpOpen(true));
+    });
+    return () => cancelAnimationFrame(id);
+  }, [giveUpMounted]);
+
+  useEffect(() => {
+    if (!giveUpMounted) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeGiveUp();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [giveUpMounted]);
+
+  const onGiveUpTransitionEnd = (e: TransitionEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return;
+    if (giveUpOpen) return;
+    setGiveUpMounted(false);
+    if (resetAfterCloseRef.current) {
+      resetAfterCloseRef.current = false;
+      onResetProgress();
+    }
+  };
+
   const startPlayer = graph.players.get(state.startPlayerId!);
   const targetPlayer = graph.players.get(state.targetPlayerId!);
   const startClub = graph.getCurrentClub(state.startPlayerId!);
@@ -57,6 +115,7 @@ export function GameScreen({
   const chainTailId = currentPlayerId(state.chain);
   const hopCount = state.chain.filter((n) => n.type === "entity").length;
   const won = state.phase === "won";
+  const puzzleKey = `${state.level}-${state.startPlayerId}-${state.targetPlayerId}`;
 
   const winReveal = useMemo(() => {
     if (!won || !state.startPlayerId || !state.targetPlayerId) return null;
@@ -163,122 +222,186 @@ export function GameScreen({
         : "Choose a teammate who shared that entity.";
 
   return (
-    <main className={styles.screen}>
-      <header className={styles.topbar}>
-        <span className={styles.brand}>Overlap</span>
-        <div className={styles.hud} aria-live="polite">
-          <span className={styles.levelPill}>
-            <span className={styles.levelKey}>Level</span>
-            <span className={styles.levelVal}>{state.level}</span>
-          </span>
-          <span className={styles.hops}>
-            {hopCount} {hopCount === 1 ? "hop" : "hops"}
-          </span>
-        </div>
-      </header>
+    <>
+      <main
+        className={[styles.screen, won ? "" : styles.screenWithNav]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <header className={styles.topbar}>
+          <span className={styles.brand}>Overlap</span>
+          <div className={styles.hud} aria-live="polite">
+            <span className={styles.levelPill}>
+              <span className={styles.levelKey}>Level</span>
+              <span className={styles.levelVal}>{state.level}</span>
+            </span>
+            <span className={styles.hops}>
+              {hopCount} {hopCount === 1 ? "hop" : "hops"}
+            </span>
+          </div>
+        </header>
 
-      <section className={styles.board}>
-        <div className={`${styles.cardSlot} ${styles.startSlot}`}>
-          <PlayerCard
-            compact
-            name={startPlayer?.name ?? "—"}
-            position={startPlayer?.position}
-            club={startClub?.name}
-            nationalTeam={startNationalTeam?.name}
-            imageUrl={startPlayer?.imageUrl}
-            role="start"
-            active={chainTailId === startPlayer?.id && !won}
-            disabled={won || chainTailId !== startPlayer?.id}
-            onClick={() =>
-              dispatch({ type: "EXPAND_PLAYER", playerId: startPlayer!.id })
-            }
-          />
-        </div>
+        <section className={styles.board}>
+          <div
+            key={`start-${puzzleKey}`}
+            className={`${styles.cardSlot} ${styles.startSlot} ${styles.cardEnterStart}`}
+          >
+            <PlayerCard
+              compact
+              name={startPlayer?.name ?? "—"}
+              position={startPlayer?.position}
+              club={startClub?.name}
+              nationalTeam={startNationalTeam?.name}
+              imageUrl={startPlayer?.imageUrl}
+              role="start"
+              active={chainTailId === startPlayer?.id && !won}
+              disabled={won || chainTailId !== startPlayer?.id}
+              onClick={() =>
+                dispatch({ type: "EXPAND_PLAYER", playerId: startPlayer!.id })
+              }
+            />
+          </div>
 
-        <div className={styles.panelSlot}>
-          <ConnectionPanel
-            chips={chips}
-            options={options}
-            optionsKey={optionsKey}
-            prompt={prompt}
-            won={won}
-            onSelectOption={onSelectOption}
-          />
-        </div>
+          <div className={styles.panelSlot}>
+            <ConnectionPanel
+              chips={chips}
+              options={options}
+              optionsKey={optionsKey}
+              prompt={prompt}
+              won={won}
+              onSelectOption={onSelectOption}
+            />
+          </div>
 
-        <div className={`${styles.cardSlot} ${styles.targetSlot}`}>
-          <PlayerCard
-            compact
-            name={targetPlayer?.name ?? "—"}
-            position={targetPlayer?.position}
-            club={targetClub?.name}
-            clubYears={targetClubYears}
-            nationalTeam={targetNationalTeam?.name}
-            imageUrl={targetPlayer?.imageUrl}
-            role="target"
-            won={won}
-          />
-        </div>
-      </section>
+          <div
+            key={`target-${puzzleKey}`}
+            className={`${styles.cardSlot} ${styles.targetSlot} ${styles.cardEnterTarget}`}
+          >
+            <PlayerCard
+              compact
+              name={targetPlayer?.name ?? "—"}
+              position={targetPlayer?.position}
+              club={targetClub?.name}
+              clubYears={targetClubYears}
+              nationalTeam={targetNationalTeam?.name}
+              imageUrl={targetPlayer?.imageUrl}
+              role="target"
+              won={won}
+            />
+          </div>
+        </section>
 
-      {won ? (
-        <section className={styles.win} aria-live="polite">
-          <h2 className={styles.winTitle}>Circuit closed</h2>
-          <p className={styles.winCopy}>
-            {startPlayer?.name} → {targetPlayer?.name}
-          </p>
-          <p className={`mono ${styles.winStat}`}>
-            solved in {hopCount} {hopCount === 1 ? "hop" : "hops"} · level{" "}
-            {state.level}
-          </p>
-          {winReveal?.kind === "shorter_exists" ? (
-            <div className={styles.shortestReveal}>
-              <p className={`mono ${styles.shortestLabel}`}>
-                Shortest path: {winReveal.shortestHops}{" "}
-                {winReveal.shortestHops === 1 ? "hop" : "hops"}
+        {won ? (
+          <section className={styles.win} aria-live="polite">
+            <h2 className={styles.winTitle}>Circuit closed</h2>
+            <p className={styles.winCopy}>
+              {startPlayer?.name} → {targetPlayer?.name}
+            </p>
+            <p className={`mono ${styles.winStat}`}>
+              solved in {hopCount} {hopCount === 1 ? "hop" : "hops"} · level{" "}
+              {state.level}
+            </p>
+            {winReveal?.kind === "shorter_exists" ? (
+              <div className={styles.shortestReveal}>
+                <p className={`mono ${styles.shortestLabel}`}>
+                  Shortest path: {winReveal.shortestHops}{" "}
+                  {winReveal.shortestHops === 1 ? "hop" : "hops"}
+                </p>
+                <div className={styles.shortestChips}>
+                  <PathChipRow
+                    chips={winReveal.chips}
+                    ariaLabel="Shortest path"
+                  />
+                </div>
+              </div>
+            ) : null}
+            <button
+              type="button"
+              className={styles.primaryBtn}
+              onClick={onNextLevel}
+            >
+              Next level
+            </button>
+            <button
+              type="button"
+              className={styles.menuLink}
+              onClick={onBackToMenu}
+            >
+              Back to menu
+            </button>
+          </section>
+        ) : null}
+
+        {giveUpMounted ? (
+          <div
+            className={[
+              styles.modalBackdrop,
+              giveUpOpen ? styles.modalBackdropOpen : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            role="presentation"
+            onClick={() => closeGiveUp()}
+            onTransitionEnd={onGiveUpTransitionEnd}
+          >
+            <div
+              className={[styles.modal, giveUpOpen ? styles.modalOpen : ""]
+                .filter(Boolean)
+                .join(" ")}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="give-up-title"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p id="give-up-title" className={styles.modalPrompt}>
+                Reset level back to 1?
               </p>
-              <div className={styles.shortestChips}>
-                <PathChipRow
-                  chips={winReveal.chips}
-                  ariaLabel="Shortest path"
-                />
+              <div className={styles.modalActions}>
+                <button
+                  type="button"
+                  className={styles.modalCancel}
+                  onClick={() => closeGiveUp()}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className={styles.modalDanger}
+                  onClick={() => closeGiveUp({ reset: true })}
+                >
+                  Reset
+                </button>
               </div>
             </div>
-          ) : null}
-          <button
-            type="button"
-            className={styles.primaryBtn}
-            onClick={onNextLevel}
-          >
-            Next level
-          </button>
-          <button
-            type="button"
-            className={styles.menuLink}
-            onClick={onBackToMenu}
-          >
-            Back to menu
-          </button>
-        </section>
-      ) : (
-        <footer className={styles.actions}>
-          <button
-            type="button"
-            className={styles.ghostBtn}
-            onClick={() => dispatch({ type: "UNDO" })}
-            disabled={state.chain.length <= 1}
-          >
-            Undo
-          </button>
-          <button
-            type="button"
-            className={styles.ghostBtn}
-            onClick={onBackToMenu}
-          >
-            Give up
-          </button>
-        </footer>
-      )}
-    </main>
+          </div>
+        ) : null}
+      </main>
+
+      {!won ? (
+        <BottomNav
+          items={[
+            {
+              id: "home",
+              label: "Home",
+              icon: <HomeIcon />,
+              onClick: onBackToMenu,
+            },
+            {
+              id: "undo",
+              label: "Undo",
+              icon: <UndoIcon />,
+              disabled: state.chain.length <= 1,
+              onClick: () => dispatch({ type: "UNDO" }),
+            },
+            {
+              id: "give-up",
+              label: "Give up",
+              icon: <GiveUpIcon />,
+              onClick: openGiveUp,
+            },
+          ]}
+        />
+      ) : null}
+    </>
   );
 }

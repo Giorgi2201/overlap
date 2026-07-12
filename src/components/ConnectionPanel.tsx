@@ -318,8 +318,8 @@ export function ConnectionPanel({
                 role="list"
                 aria-label="Available connections"
               >
-                <div className={styles.optionsGrid}>
-                  {filtered.map((opt) => (
+                <div className={styles.optionsGrid} key={optionsKey}>
+                  {filtered.map((opt, i) => (
                     <button
                       key={opt.id}
                       type="button"
@@ -335,6 +335,12 @@ export function ConnectionPanel({
                       ]
                         .filter(Boolean)
                         .join(" ")}
+                      style={
+                        {
+                          /* Cap matches --stagger-cap so huge grids stay snappy */
+                          "--stagger-i": Math.min(i, 8),
+                        } as CSSProperties
+                      }
                       disabled={opt.isDeadEnd}
                       aria-disabled={opt.isDeadEnd}
                       aria-label={`${opt.label}${opt.kind === "national_team" ? ` (national team, ${NT_ANY_ERA_LABEL})` : opt.kind === "club" ? " (club)" : ""}${opt.isDeadEnd ? " — dead end" : ""}`}

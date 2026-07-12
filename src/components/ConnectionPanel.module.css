@@ -278,10 +278,13 @@
   background: color-mix(in srgb, var(--glass) 88%, transparent);
   text-align: left;
   color: inherit;
+  /* Capped stagger: --stagger-i set inline (JS caps at --stagger-cap) */
+  animation: optionIn var(--dur-quick) var(--ease-motion) both;
+  animation-delay: calc(var(--stagger-i, 0) * var(--stagger-step));
   transition:
-    border-color var(--dur-soft) ease,
-    background var(--dur-soft) ease,
-    box-shadow var(--dur-soft) ease;
+    border-color var(--dur-quick) var(--ease-motion),
+    background var(--dur-quick) var(--ease-motion),
+    box-shadow var(--dur-quick) var(--ease-motion);
 }
 
 .optionCard:hover:not(:disabled) {
@@ -374,6 +377,26 @@
   color: var(--dead);
 }
 
+@keyframes optionIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeOnly {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @media (max-width: 1100px) {
   .optionsGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -391,5 +414,11 @@
 
   .chipName {
     max-width: 7.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .optionCard {
+    animation-name: fadeOnly;
   }
 }

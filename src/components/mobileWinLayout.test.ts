@@ -32,6 +32,27 @@ describe("PlayerCard national-team height slot", () => {
   });
 });
 
+describe("bottom nav + give up modal", () => {
+  it("uses BottomNav for Home/Undo/Give up and keeps the reset modal above it", () => {
+    expect(screenSrc).toMatch(/BottomNav/);
+    expect(screenSrc).toMatch(/onBackToMenu/);
+    expect(screenSrc).toMatch(/giveUpOpen/);
+    expect(screenSrc).toMatch(/role="dialog"/);
+    expect(screenSrc).toMatch(/Reset level back to 1\?/);
+    expect(screenSrc).toMatch(/chain\.length <= 1/);
+    expect(screenSrc).not.toMatch(/className=\{styles\.actions\}/);
+    expect(screenCss).toMatch(/\.screenWithNav\s*\{/);
+    expect(screenCss).toMatch(/var\(--bottom-nav-total/);
+    expect(screenCss).toMatch(/\.modalBackdrop\s*\{[^}]*z-index:\s*50/s);
+  });
+
+  it("sizes modal actions for comfortable mobile taps", () => {
+    expect(screenCss).toMatch(
+      /@media \(max-width: 520px\)[\s\S]*\.modalCancel,[\s\S]*min-height:\s*2\.85rem/,
+    );
+  });
+});
+
 describe("won board layout (pre-collapse behavior)", () => {
   it("does not collapse the board or hide the options well on win", () => {
     expect(screenSrc).not.toMatch(/screenWon/);

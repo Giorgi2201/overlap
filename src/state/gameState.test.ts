@@ -1,10 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadGraph } from "../lib/graph";
 import { generateRandomPair } from "../lib/pathfinding";
 import {
+  clearGameSession,
   currentPlayerId,
   gameReducer,
+  hydrateGameState,
   initialGameState,
+  persistGameSession,
+  persistLevel,
+  validatePlayingSession,
   type GameState,
 } from "./gameState";
 
@@ -226,5 +231,160 @@ describe("gameReducer UNDO", () => {
 
     state = gameReducer(state, { type: "UNDO" });
     expect(state.chain).toEqual([{ type: "player", id: pair.startPlayerId }]);
+  });
+});
+
+describe("session persistence", () => {
+  const memory = new Map<string, string>();
+
+  beforeEach(() => {
+    memory.clear();
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (key: string) => memory.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          memory.set(key, String(value));
+        },
+        removeItem: (key: string) => {
+          memory.delete(key);
+        },
+        clear: () => memory.clear(),
+      },
+    });
+    persistLevel(1);
+  });
+
+  afterEach(() => {
+    memory.clear();
+  });
+
+  it("restores a mid-chain playing session on hydrate", () => {
+    const pair = generateRandomPair(g, { random: mulberry32(31), level: 2 });
+    let state: GameState = gameReducer(
+      { ...initialGameState, level: 2 },
+      { type: "START_GAME", pair },
+    );
+    const entityId = pair.path[0].entityId!;
+    const midPlayerId = pair.path[1].playerId;
+    state = gameReducer(state, {
+      type: "EXPAND_PLAYER",
+      playerId: pair.startPlayerId,
+    });
+    state = gameReducer(state, { type: "SELECT_ENTITY", entityId });
+    state = gameReducer(state, {
+      type: "SELECT_PLAYER",
+      playerId: midPlayerId,
+    });
+    expect(state.phase).toBe("playing");
+    persistGameSession(state);
+
+    const restored = hydrateGameState(g, () => {
+      throw new Error("should not generate a new pair when restoring play");
+    });
+    expect(restored.phase).toBe("playing");
+    expect(restored.level).toBe(2);
+    expect(restored.startPlayerId).toBe(pair.startPlayerId);
+    expect(restored.targetPlayerId).toBe(pair.targetPlayerId);
+    expect(restored.chain).toEqual(state.chain);
+    expect(restored.expanded).toEqual(state.expanded);
+  });
+
+  it("after a win refresh, starts a fresh puzzle at the incremented level", () => {
+    const pair = generateRandomPair(g, { random: mulberry32(32), level: 1 });
+    let state: GameState = gameReducer(
+      { ...initialGameState, level: 1 },
+      { type: "START_GAME", pair },
+    );
+    for (let i = 0; i < pair.path.length - 1; i++) {
+      const { playerId, entityId } = pair.path[i];
+      state = gameReducer(state, { type: "EXPAND_PLAYER", playerId });
+      state = gameReducer(state, {
+        type: "SELECT_ENTITY",
+        entityId: entityId!,
+      });
+      state = gameReducer(state, {
+        type: "SELECT_PLAYER",
+        playerId: pair.path[i + 1].playerId,
+      });
+    }
+    expect(state.phase).toBe("won");
+    expect(state.level).toBe(2);
+    persistGameSession(state);
+
+    const next = generateRandomPair(g, { random: mulberry32(33), level: 2 });
+    let generatedLevel: number | null = null;
+    const hydrated = hydrateGameState(g, (level) => {
+      generatedLevel = level;
+      return next;
+    });
+
+    expect(generatedLevel).toBe(2);
+    expect(hydrated.phase).toBe("playing");
+    expect(hydrated.level).toBe(2);
+    expect(hydrated.startPlayerId).toBe(next.startPlayerId);
+    expect(hydrated.targetPlayerId).toBe(next.targetPlayerId);
+    expect(hydrated.chain).toEqual([
+      { type: "player", id: next.startPlayerId },
+    ]);
+    expect(hydrated.expanded).toBeNull();
+  });
+
+  it("falls back to start when session references unknown players", () => {
+    persistGameSession({
+      phase: "playing",
+      level: 3,
+      startPlayerId: "missing-a",
+      targetPlayerId: "missing-b",
+      chain: [{ type: "player", id: "missing-a" }],
+      expanded: null,
+    });
+    const hydrated = hydrateGameState(g, () => {
+      throw new Error("should not generate");
+    });
+    expect(hydrated.phase).toBe("start");
+    expect(hydrated.startPlayerId).toBeNull();
+  });
+
+  it("rejects a finished (won) chain disguised as playing", () => {
+    const pair = generateRandomPair(g, { random: mulberry32(34), level: 1 });
+    const bogus = {
+      v: 1 as const,
+      kind: "playing" as const,
+      level: 1,
+      startPlayerId: pair.startPlayerId,
+      targetPlayerId: pair.targetPlayerId,
+      chain: [
+        { type: "player" as const, id: pair.startPlayerId },
+        { type: "entity" as const, id: pair.path[0].entityId! },
+        { type: "player" as const, id: pair.targetPlayerId },
+      ],
+      expanded: null,
+    };
+    expect(validatePlayingSession(bogus, g)).toBeNull();
+  });
+
+  it("RESET_PROGRESS clears the session", () => {
+    const pair = generateRandomPair(g, { random: mulberry32(35), level: 2 });
+    let state = gameReducer(
+      { ...initialGameState, level: 2 },
+      { type: "START_GAME", pair },
+    );
+    persistGameSession(state);
+    state = gameReducer(state, { type: "RESET_PROGRESS" });
+    expect(state.phase).toBe("start");
+    expect(state.level).toBe(1);
+    const hydrated = hydrateGameState(g, () => {
+      throw new Error("should not generate");
+    });
+    expect(hydrated.phase).toBe("start");
+  });
+
+  it("clearGameSession leaves hydrate on the start screen", () => {
+    clearGameSession();
+    const hydrated = hydrateGameState(g, () => {
+      throw new Error("should not generate");
+    });
+    expect(hydrated.phase).toBe("start");
   });
 });

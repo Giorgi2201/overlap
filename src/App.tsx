@@ -1,14 +1,24 @@
-import { useReducer } from "react";
+import { useEffect, useReducer } from "react";
 import { GameScreen } from "./components/GameScreen";
 import { StartScreen } from "./components/StartScreen";
 import { loadGraph } from "./lib/graph";
 import { generateRandomPair } from "./lib/pathfinding";
-import { createInitialState, gameReducer } from "./state/gameState";
+import {
+  gameReducer,
+  hydrateGameState,
+  persistGameSession,
+} from "./state/gameState";
 
 const graph = loadGraph();
 
 function App() {
-  const [state, dispatch] = useReducer(gameReducer, undefined, createInitialState);
+  const [state, dispatch] = useReducer(gameReducer, undefined, () =>
+    hydrateGameState(graph, (level) => generateRandomPair(graph, { level })),
+  );
+
+  useEffect(() => {
+    persistGameSession(state);
+  }, [state]);
 
   const startPuzzleAtCurrentLevel = () => {
     dispatch({
@@ -34,6 +44,7 @@ function App() {
       dispatch={dispatch}
       onNextLevel={startPuzzleAtCurrentLevel}
       onBackToMenu={() => dispatch({ type: "RESET" })}
+      onResetProgress={() => dispatch({ type: "RESET_PROGRESS" })}
     />
   );
 }

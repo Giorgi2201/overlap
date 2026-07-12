@@ -1,0 +1,156 @@
+/*
+  Floating pill nav clearance:
+  pill height + float gap above viewport bottom + iOS home-indicator inset.
+*/
+:root {
+  --bottom-nav-pill-height: 3.85rem; /* icon + label + padding */
+  --bottom-nav-float-gap: 0.85rem;
+  --bottom-nav-total: calc(
+    var(--bottom-nav-pill-height) + var(--bottom-nav-float-gap) +
+      env(safe-area-inset-bottom, 0px)
+  );
+}
+
+.dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  pointer-events: none;
+  padding: 0 1.1rem
+    calc(var(--bottom-nav-float-gap) + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+}
+
+.pill {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  height: var(--bottom-nav-pill-height);
+  max-width: 100%;
+  padding: 0 0.95rem;
+  border-radius: 999px;
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--glass) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--signal) 22%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--signal) 6%, transparent),
+    0 14px 36px color-mix(in srgb, var(--void) 55%, transparent);
+}
+
+.pillEnter {
+  animation: pillIn var(--dur-standard) var(--ease-motion) both;
+}
+
+.item {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.12rem;
+  min-width: 3.55rem; /* ~57px — fits "Give up" + 44px guidance */
+  min-height: 2.75rem;
+  height: 100%;
+  margin: 0;
+  padding: 0.2rem 0.45rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  transition:
+    color var(--dur-quick) var(--ease-motion),
+    transform var(--dur-quick) var(--ease-motion),
+    opacity var(--dur-quick) var(--ease-motion),
+    background var(--dur-quick) var(--ease-motion);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.item:hover:not(:disabled),
+.item:focus-visible:not(:disabled) {
+  color: color-mix(in srgb, var(--signal) 70%, var(--text));
+  outline: none;
+}
+
+.item:focus-visible:not(:disabled) {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--signal) 40%, transparent);
+}
+
+.item:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.item:disabled {
+  opacity: 0.34;
+  cursor: default;
+  pointer-events: none;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+}
+
+.label {
+  font-family: var(--font-body);
+  font-size: 0.62rem;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: inherit;
+}
+
+.svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+@keyframes pillIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeOnly {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pillEnter {
+    animation-name: fadeOnly;
+  }
+
+  .item {
+    transition:
+      color var(--dur-quick) var(--ease-motion),
+      opacity var(--dur-quick) var(--ease-motion),
+      background var(--dur-quick) var(--ease-motion);
+  }
+
+  .item:active:not(:disabled) {
+    transform: none;
+  }
+}
