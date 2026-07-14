@@ -283,7 +283,7 @@ export function ConnectionPanel({
         ) : options.length === 0 ? (
           <p className={styles.emptyHint}>
             {chips.length <= 1
-              ? "Tap the start player to open their affiliations."
+              ? "Their clubs and national teams will appear here."
               : "Pick an option above to continue."}
           </p>
         ) : (

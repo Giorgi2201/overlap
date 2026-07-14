@@ -91,20 +91,19 @@ export function StartScreen({ level, onStart, onResetProgress }: StartScreenProp
       </div>
 
       <div className={styles.content}>
-        <p className={styles.eyebrow}>Football · timed clubs · any-era nations</p>
+        <p className={styles.eyebrow}>FOOTBALL · REAL TEAMMATES, NOT JUST TEAM NAMES</p>
         <h1 className={styles.brand}>Overlap</h1>
         <p className={styles.levelPill}>
           <span className={styles.levelKey}>Level</span>
           <span className={styles.levelVal}>{level}</span>
         </p>
         <p className={styles.lede}>
-          Connect two footballers through people who were genuinely teammates —
-          same club, same window of time.
+          Connect two footballers through the people who actually played alongside them.
         </p>
         <p className={styles.detail}>
-          Club links only count when their tenures overlap. National teams are
-          looser: any shared side works, era optional. Dead ends stay marked so
-          you never walk into a wall blind.
+          Club links need real overlap — same squad, same years. National teams are
+          looser: any shared call-up counts, any era. Dead ends are marked, so you
+          always know your next move.
         </p>
         <button type="button" className={styles.cta} onClick={onStart}>
           {level > 1 ? "Continue" : "New puzzle"}

@@ -216,10 +216,14 @@ export function GameScreen({
   const prompt = won
     ? ""
     : state.expanded === null
-      ? "Open the start player to begin the circuit."
+      ? ""
       : state.expanded.kind === "entities"
         ? "Choose a club or national team."
-        : "Choose a teammate who shared that entity.";
+        : (() => {
+            const entity = graph.entities.get(state.expanded.entityId);
+            const entityName = entity?.name ?? "that team";
+            return `Choose a teammate from ${entityName}.`;
+          })();
 
   return (
     <>
