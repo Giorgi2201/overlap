@@ -95,12 +95,41 @@
 }
 
 .icon {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 1.25rem;
   height: 1.25rem;
   flex-shrink: 0;
+}
+
+/* Numeric badge on the icon (e.g. undosRemaining). */
+.badge {
+  position: absolute;
+  top: -5px;
+  right: -6px;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 0.28rem;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: var(--signal);
+  color: var(--void);
+  box-sizing: border-box;
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--glass) 85%, transparent);
+}
+
+.badgeEmpty {
+  background: color-mix(in srgb, var(--dead) 50%, transparent);
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
 }
 
 .label {

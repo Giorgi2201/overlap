@@ -6,7 +6,9 @@ import type { AffiliationGraph } from "../lib/graph";
 import type { PuzzlePair } from "../lib/pathfinding";
 
 const LEVEL_STORAGE_KEY = "overlap.level";
+const UNDOS_REMAINING_STORAGE_KEY = "overlap.undosRemaining";
 const SESSION_STORAGE_KEY = "overlap.session";
+const AT_MENU_STORAGE_KEY = "overlap.atMenu";
 
 /** One node of the chain the user is building, in click order. */
 export interface ChainNode {
@@ -29,6 +31,10 @@ export interface GameState {
   targetPlayerId: string | null;
   chain: ChainNode[];
   expanded: ExpandedView | null;
+  /** Number of undos remaining for the current run. */
+  undosRemaining: number;
+  /** Number of entity hops in the shortest known path for the current puzzle. */
+  shortestPathLength: number;
 }
 
 export type GameAction =
@@ -38,7 +44,8 @@ export type GameAction =
   | { type: "SELECT_PLAYER"; playerId: string }
   | { type: "UNDO" }
   | { type: "RESET" }
-  | { type: "RESET_PROGRESS" };
+  | { type: "RESET_PROGRESS" }
+  | { type: "RESTORE_SESSION"; state: GameState };
 
 type StoredPlayingSession = {
   v: 1;
@@ -48,11 +55,14 @@ type StoredPlayingSession = {
   targetPlayerId: string;
   chain: ChainNode[];
   expanded: ExpandedView | null;
+  undosRemaining: number;
+  shortestPathLength: number;
 };
 
 type StoredAdvanceSession = {
   v: 1;
   kind: "advance";
+  undosRemaining: number;
 };
 
 type StoredSession = StoredPlayingSession | StoredAdvanceSession;
@@ -76,6 +86,45 @@ export function persistLevel(level: number): void {
   }
 }
 
+export function loadPersistedUndosRemaining(): number {
+  try {
+    const raw = localStorage.getItem(UNDOS_REMAINING_STORAGE_KEY);
+    if (raw == null) return 3;
+    const n = Number.parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 0 ? n : 3;
+  } catch {
+    return 3;
+  }
+}
+
+export function persistUndosRemaining(value: number): void {
+  try {
+    localStorage.setItem(UNDOS_REMAINING_STORAGE_KEY, String(Math.max(0, Math.floor(value))));
+  } catch {
+    // Ignore quota / private-mode failures — in-memory value still works.
+  }
+}
+
+export function persistAtMenu(atMenu: boolean): void {
+  try {
+    if (atMenu) {
+      localStorage.setItem(AT_MENU_STORAGE_KEY, "1");
+    } else {
+      localStorage.removeItem(AT_MENU_STORAGE_KEY);
+    }
+  } catch {
+    // ignore
+  }
+}
+
+export function loadPersistedAtMenu(): boolean {
+  try {
+    return localStorage.getItem(AT_MENU_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export function clearGameSession(): void {
   try {
     localStorage.removeItem(SESSION_STORAGE_KEY);
@@ -91,12 +140,14 @@ export function clearGameSession(): void {
 export function persistGameSession(state: GameState): void {
   try {
     if (state.phase === "start") {
-      localStorage.removeItem(SESSION_STORAGE_KEY);
+      // Don't delete — the session was saved during play, and navigating to the
+      // Home screen should preserve it so the user can return to the same puzzle.
       return;
     }
     if (state.phase === "won") {
-      const payload: StoredAdvanceSession = { v: 1, kind: "advance" };
+      const payload: StoredAdvanceSession = { v: 1, kind: "advance", undosRemaining: state.undosRemaining };
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
+      persistAtMenu(false);
       return;
     }
     if (!state.startPlayerId || !state.targetPlayerId) return;
@@ -108,8 +159,11 @@ export function persistGameSession(state: GameState): void {
       targetPlayerId: state.targetPlayerId,
       chain: state.chain,
       expanded: state.expanded,
+      undosRemaining: state.undosRemaining,
+      shortestPathLength: state.shortestPathLength,
     };
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
+    persistAtMenu(false);
   } catch {
     // Ignore quota / private-mode failures.
   }
@@ -201,10 +255,12 @@ export function validatePlayingSession(
     targetPlayerId: data.targetPlayerId,
     chain: data.chain,
     expanded,
+    undosRemaining: data.undosRemaining ?? 3,
+    shortestPathLength: data.shortestPathLength ?? 0,
   };
 }
 
-function readStoredSession(): StoredSession | null {
+export function readStoredSession(): StoredSession | null {
   try {
     const raw = localStorage.getItem(SESSION_STORAGE_KEY);
     if (raw == null) return null;
@@ -238,6 +294,8 @@ export function hydrateGameState(
         targetPlayerId: pair.targetPlayerId,
         chain: [{ type: "player", id: pair.startPlayerId }],
         expanded: null,
+        undosRemaining: stored.undosRemaining,
+        shortestPathLength: pair.pathLength,
       };
       persistGameSession(state);
       return state;
@@ -248,6 +306,11 @@ export function hydrateGameState(
   }
 
   if (stored?.kind === "playing") {
+    // If the player deliberately went Home before reloading, show StartScreen.
+    // The "Continue" button can still restore the saved session on demand.
+    if (loadPersistedAtMenu()) {
+      return createInitialState();
+    }
     const restored = validatePlayingSession(stored, graph);
     if (restored) {
       persistLevel(restored.level);
@@ -267,6 +330,8 @@ export function createInitialState(): GameState {
     targetPlayerId: null,
     chain: [],
     expanded: null,
+    undosRemaining: loadPersistedUndosRemaining(),
+    shortestPathLength: 0,
   };
 }
 
@@ -278,6 +343,8 @@ export const initialGameState: GameState = {
   targetPlayerId: null,
   chain: [],
   expanded: null,
+  undosRemaining: 3,
+  shortestPathLength: 0,
 };
 
 export function currentPlayerId(chain: ChainNode[]): string | null {
@@ -297,6 +364,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         targetPlayerId: action.pair.targetPlayerId,
         chain: [{ type: "player", id: action.pair.startPlayerId }],
         expanded: null,
+        shortestPathLength: action.pair.pathLength,
+        // undosRemaining carries over between puzzles — do not reset
       };
 
     case "EXPAND_PLAYER": {
@@ -335,7 +404,18 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (action.playerId === state.targetPlayerId) {
         const level = state.level + 1;
         persistLevel(level);
-        return { ...state, chain, phase: "won", expanded: null, level };
+        const playerHops = chain.filter((n) => n.type === "entity").length;
+        const bonus = playerHops <= state.shortestPathLength ? 2 : 1;
+        const undosRemaining = state.undosRemaining + bonus;
+        persistUndosRemaining(undosRemaining);
+        return {
+          ...state,
+          chain,
+          phase: "won",
+          expanded: null,
+          level,
+          undosRemaining,
+        };
       }
       return {
         ...state,
@@ -345,7 +425,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case "UNDO": {
-      if (state.phase !== "playing" || state.chain.length <= 1) return state;
+      if (state.phase !== "playing" || state.chain.length <= 1 || state.undosRemaining <= 0) return state;
       const removed = state.chain[state.chain.length - 1];
       const chain = state.chain.slice(0, -1);
       const tail = chain[chain.length - 1];
@@ -357,10 +437,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
               entityId: tail.id,
               viaPlayerId: chain[chain.length - 2].id,
             };
-      return { ...state, chain, expanded };
+      const undosRemaining = state.undosRemaining - 1;
+      persistUndosRemaining(undosRemaining);
+      return { ...state, chain, expanded, undosRemaining };
     }
 
     case "RESET":
+      persistAtMenu(true);
       return {
         ...state,
         phase: "start",
@@ -372,7 +455,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case "RESET_PROGRESS": {
       persistLevel(1);
+      persistUndosRemaining(3);
       clearGameSession();
+      persistAtMenu(false);
       return {
         ...state,
         phase: "start",
@@ -381,7 +466,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         targetPlayerId: null,
         chain: [],
         expanded: null,
+        undosRemaining: 3,
       };
     }
+
+    case "RESTORE_SESSION":
+      return action.state;
   }
 }

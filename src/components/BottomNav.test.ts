@@ -36,10 +36,11 @@ describe("BottomNav floating pill", () => {
     expect(css).toMatch(/flex-direction:\s*column/);
   });
 
-  it("wires Home → menu, Undo disabled on short chain, Give up → modal", () => {
+  it("wires Home → menu, Undo disabled on short chain or 0 undos, Give up → modal", () => {
     expect(screenSrc).toMatch(/id: "home"/);
     expect(screenSrc).toMatch(/onClick: onBackToMenu/);
-    expect(screenSrc).toMatch(/chain\.length <= 1/);
+    expect(screenSrc).toMatch(/chain\.length <= 1 \|\| state\.undosRemaining <= 0/);
+    expect(screenSrc).toMatch(/badge: state\.undosRemaining/);
     expect(screenSrc).toMatch(/onClick: openGiveUp/);
   });
 });

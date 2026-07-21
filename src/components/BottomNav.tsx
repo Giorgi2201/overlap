@@ -9,6 +9,8 @@ export interface BottomNavItem {
   icon: ReactNode;
   onClick: () => void;
   disabled?: boolean;
+  /** Optional numeric badge shown on the icon (e.g. undosRemaining). */
+  badge?: number | null;
 }
 
 interface BottomNavProps {
@@ -133,6 +135,19 @@ export function BottomNav({
           >
             <span className={styles.icon} aria-hidden="true">
               {item.icon}
+              {item.badge != null ? (
+                <span
+                  className={[
+                    styles.badge,
+                    item.badge <= 0 ? styles.badgeEmpty : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  aria-hidden="true"
+                >
+                  {item.badge}
+                </span>
+              ) : null}
             </span>
             <span className={styles.label}>{item.label}</span>
           </button>

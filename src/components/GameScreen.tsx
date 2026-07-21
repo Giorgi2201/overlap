@@ -394,7 +394,8 @@ export function GameScreen({
               id: "undo",
               label: "Undo",
               icon: <UndoIcon />,
-              disabled: state.chain.length <= 1,
+              disabled: state.chain.length <= 1 || state.undosRemaining <= 0,
+              badge: state.undosRemaining,
               onClick: () => dispatch({ type: "UNDO" }),
             },
             {
