@@ -1,6 +1,47 @@
 /* Fixed single-viewport game shell — page does not scroll; options grid may. */
 
+.shell {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  overflow: hidden;
+  background: var(--void);
+}
+
+.media {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--void) 78%, transparent) 0%,
+      color-mix(in srgb, var(--void) 86%, transparent) 50%,
+      color-mix(in srgb, var(--void) 92%, transparent) 100%
+    );
+}
+
 .screen {
+  position: relative;
+  z-index: 1;
   flex: 1;
   display: flex;
   flex-direction: column;

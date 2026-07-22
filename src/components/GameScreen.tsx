@@ -27,6 +27,8 @@ import {
 import { PlayerCard } from "./PlayerCard";
 import styles from "./GameScreen.module.css";
 
+export const GAME_PHASE_BG = "/game-phase-bg.mp4";
+
 interface GameScreenProps {
   graph: AffiliationGraph;
   state: GameState;
@@ -58,7 +60,29 @@ export function GameScreen({
   /** Modal stays mounted through exit so fade/slide can finish. */
   const [giveUpMounted, setGiveUpMounted] = useState(false);
   const [giveUpOpen, setGiveUpOpen] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
   const resetAfterCloseRef = useRef(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const motionMq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const syncMotion = () => setReduceMotion(motionMq.matches);
+    syncMotion();
+    motionMq.addEventListener("change", syncMotion);
+    return () => motionMq.removeEventListener("change", syncMotion);
+  }, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || reduceMotion) return;
+    video.muted = true;
+    const attempt = video.play();
+    if (attempt && typeof attempt.catch === "function") {
+      attempt.catch(() => {
+        // Autoplay blocked — scrim still covers the shell.
+      });
+    }
+  }, [reduceMotion]);
 
   const openGiveUp = () => {
     resetAfterCloseRef.current = false;
@@ -226,7 +250,23 @@ export function GameScreen({
           })();
 
   return (
-    <>
+    <div className={styles.shell}>
+      <div className={styles.media} aria-hidden="true">
+        {!reduceMotion ? (
+          <video
+            ref={videoRef}
+            className={styles.video}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            src={GAME_PHASE_BG}
+          />
+        ) : null}
+        <div className={styles.scrim} />
+      </div>
+
       <main
         className={[styles.screen, won ? "" : styles.screenWithNav]
           .filter(Boolean)
@@ -407,6 +447,6 @@ export function GameScreen({
           ]}
         />
       ) : null}
-    </>
+    </div>
   );
 }
