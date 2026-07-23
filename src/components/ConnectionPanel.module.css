@@ -330,6 +330,19 @@
   box-shadow: none;
 }
 
+.optionNeedsHops {
+  border-color: color-mix(in srgb, var(--dead) 45%, transparent);
+  background: var(--dead-fill);
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.optionNeedsHops:hover {
+  border-color: color-mix(in srgb, var(--dead) 45%, transparent);
+  background: var(--dead-fill);
+  box-shadow: none;
+}
+
 .optionText {
   display: flex;
   flex-direction: column;
@@ -370,6 +383,14 @@
 }
 
 .deadTag {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dead);
+}
+
+.needsHopsTag {
   font-family: var(--font-mono);
   font-size: 0.55rem;
   letter-spacing: 0.06em;

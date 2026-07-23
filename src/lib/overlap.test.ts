@@ -100,7 +100,7 @@ describe("affiliationsLink split by entity type", () => {
     const a = aff(null, null);
     const b = aff(null, null);
     expect(affiliationsLink(a, b, "national_team")).toBe(true);
-    // Disjoint "dates" would still pass for NT — we do not check them.
+    // Disjoint "dates" would still pass for NT — we never look at them for NT.
     expect(
       affiliationsLink(
         aff("2000-01-01", "2001-01-01"),

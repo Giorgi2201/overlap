@@ -1,3 +1,6 @@
+# Windows reserved device name (breaks git index if created)
+nul
+
 # Logs
 logs
 *.log

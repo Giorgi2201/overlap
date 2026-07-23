@@ -111,6 +111,44 @@
   color: var(--text);
 }
 
+.ntHopPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.28rem 0.55rem 0.32rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--beacon) 35%, transparent);
+  background: color-mix(in srgb, var(--beacon) 8%, var(--glass-fill));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--beacon) 12%, transparent);
+}
+
+.ntHopDiamond {
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  background: color-mix(in srgb, var(--beacon) 80%, transparent);
+  transform: rotate(45deg);
+  border-radius: 1.5px;
+  flex-shrink: 0;
+}
+
+.ntHopKey {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--beacon) 85%, var(--muted));
+  line-height: 1;
+}
+
+.ntHopCount {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
 .hops {
   font-family: var(--font-mono);
   font-size: 0.75rem;

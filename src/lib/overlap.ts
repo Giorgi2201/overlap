@@ -6,6 +6,7 @@
  * Multi-stint: callers check every pairing of stints at that club.
  *
  * National teams: same entity is enough — we have no NT dates to check.
+ * (careerSpan helpers exist for optional later use; not applied here.)
  */
 
 import type { Affiliation, EntityType } from "./types";

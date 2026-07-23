@@ -6,6 +6,7 @@ import {
   type CSSProperties,
 } from "react";
 import styles from "./ConnectionPanel.module.css";
+import type { ReachabilityState } from "../lib/deadEnds";
 
 /** Show search once the grid is large enough that scanning by eye is slow. */
 export const OPTIONS_SEARCH_THRESHOLD = 8;
@@ -23,6 +24,7 @@ export interface OptionCard {
   sublabel?: string;
   kind: "club" | "national_team" | "player";
   isDeadEnd: boolean;
+  reachability: ReachabilityState;
 }
 
 export interface BreadcrumbChip {
@@ -331,7 +333,11 @@ export function ConnectionPanel({
                           : "",
                         opt.kind === "club" ? styles.optionClub : "",
                         opt.kind === "player" ? styles.optionPlayer : "",
-                        opt.isDeadEnd ? styles.optionDead : "",
+                        opt.reachability === "true_dead_end"
+                          ? styles.optionDead
+                          : opt.reachability === "needs_more_hops"
+                            ? styles.optionNeedsHops
+                            : "",
                       ]
                         .filter(Boolean)
                         .join(" ")}
@@ -343,7 +349,7 @@ export function ConnectionPanel({
                       }
                       disabled={opt.isDeadEnd}
                       aria-disabled={opt.isDeadEnd}
-                      aria-label={`${opt.label}${opt.kind === "national_team" ? ` (national team, ${NT_ANY_ERA_LABEL})` : opt.kind === "club" ? " (club)" : ""}${opt.isDeadEnd ? " — dead end" : ""}`}
+                      aria-label={`${opt.label}${opt.kind === "national_team" ? ` (national team, ${NT_ANY_ERA_LABEL})` : opt.kind === "club" ? " (club)" : ""}${opt.reachability === "true_dead_end" ? " — dead end" : opt.reachability === "needs_more_hops" ? " — needs more hops" : ""}`}
                       onClick={() => {
                         if (!opt.isDeadEnd) select(opt.id);
                       }}
@@ -370,8 +376,10 @@ export function ConnectionPanel({
                             {opt.sublabel}
                           </span>
                         ) : null}
-                        {opt.isDeadEnd ? (
+                        {opt.reachability === "true_dead_end" ? (
                           <span className={styles.deadTag}>dead end</span>
+                        ) : opt.reachability === "needs_more_hops" ? (
+                          <span className={styles.needsHopsTag}>needs hops</span>
                         ) : null}
                       </div>
                     </button>

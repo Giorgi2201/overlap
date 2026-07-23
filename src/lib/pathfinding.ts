@@ -5,6 +5,7 @@
  * Nodes are players; edges come from AffiliationGraph adjacency under the
  * mixed rule (club = dated overlap, national team = shared affiliation).
  * Reverse-reachability for dead-ends walks the same undirected edges.
+ * Puzzle generation additionally requires a club-only path (see findClubOnlyPath).
  */
 
 import {
@@ -167,6 +168,48 @@ export function findShortestPath(
   return null;
 }
 
+/**
+ * BFS using only club-type edges — national-team links are ignored.
+ * Guarantees a pure club route exists so a future NT-hop resource limit
+ * cannot soft-lock a puzzle.
+ */
+export function findClubOnlyPath(
+  startPlayerId: string,
+  targetPlayerId: string,
+  graph: AffiliationGraph,
+  maxHops: number = MAX_HOPS,
+): PathStep[] | null {
+  if (!graph.players.has(startPlayerId) || !graph.players.has(targetPlayerId)) {
+    return null;
+  }
+  if (startPlayerId === targetPlayerId) {
+    return [{ playerId: startPlayerId, entityId: null, clubId: null }];
+  }
+
+  const adj = graph.getTeammateAdjacency();
+  const parent = new Map<string, [string, string]>();
+  let frontier = [startPlayerId];
+  const visited = new Set(frontier);
+
+  for (let depth = 0; depth < maxHops && frontier.length > 0; depth++) {
+    const next: string[] = [];
+    for (const current of frontier) {
+      for (const edge of adj.get(current) ?? []) {
+        if (graph.entities.get(edge.entityId)?.type !== "club") continue;
+        if (visited.has(edge.neighborId)) continue;
+        visited.add(edge.neighborId);
+        parent.set(edge.neighborId, [current, edge.entityId]);
+        if (edge.neighborId === targetPlayerId) {
+          return reconstructPath(parent, startPlayerId, targetPlayerId);
+        }
+        next.push(edge.neighborId);
+      }
+    }
+    frontier = next;
+  }
+  return null;
+}
+
 function reconstructPath(
   parent: Map<string, [string, string]>,
   startPlayerId: string,
@@ -203,6 +246,11 @@ function tryRandomPair(
 
     const path = findShortestPath(startPlayerId, targetPlayerId, graph, maxHops);
     if (path === null || path.length - 1 < minHops) continue;
+
+    // Must also be solvable with clubs only (NT-hop resource soft-lock guard).
+    if (findClubOnlyPath(startPlayerId, targetPlayerId, graph, maxHops) === null) {
+      continue;
+    }
 
     return {
       startPlayerId,

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { AffiliationGraph, loadGraph } from "./graph";
 import {
   MAX_HOPS,
+  findClubOnlyPath,
   findShortestPath,
   generateRandomPair,
   getAllTeammateLinks,
@@ -186,6 +187,51 @@ describe("findShortestPath null-handling (synthetic graphs)", () => {
   });
 });
 
+describe("findClubOnlyPath", () => {
+  it("finds Messi–Suárez via Barcelona (club-only)", () => {
+    const path = findClubOnlyPath(MESSI, SUAREZ, g, MAX_HOPS);
+    expect(path).not.toBeNull();
+    expect(path!.length - 1).toBe(1);
+    expect(path![0].entityId).toBe("131");
+    assertPathIsValid(path!, g);
+  });
+
+  it("returns null when players only connect via a national team", () => {
+    const data: GraphData = {
+      players: [
+        { id: "A", name: "A", position: "X", dob: null },
+        { id: "B", name: "B", position: "X", dob: null },
+      ],
+      entities: [
+        { id: "NT", name: "Nation", type: "national_team", country: "" },
+        { id: "CA", name: "Club A", type: "club", country: "" },
+        { id: "CB", name: "Club B", type: "club", country: "" },
+      ],
+      affiliations: [
+        { playerId: "A", entityId: "NT", startDate: null, endDate: null },
+        { playerId: "B", entityId: "NT", startDate: null, endDate: null },
+        // Disjoint club careers — no club link, only NT.
+        {
+          playerId: "A",
+          entityId: "CA",
+          startDate: "2010-01-01",
+          endDate: "2012-01-01",
+        },
+        {
+          playerId: "B",
+          entityId: "CB",
+          startDate: "2018-01-01",
+          endDate: "2020-01-01",
+        },
+      ],
+    };
+    const graph = new AffiliationGraph(data);
+    expect(findShortestPath("A", "B", graph)).not.toBeNull();
+    expect(findShortestPath("A", "B", graph)![0].entityId).toBe("NT");
+    expect(findClubOnlyPath("A", "B", graph)).toBeNull();
+  });
+});
+
 describe("generateRandomPair", () => {
   it("always returns solvable pairs at default minHops (30 seeded runs)", () => {
     const rng = mulberry32(42);
@@ -196,6 +242,10 @@ describe("generateRandomPair", () => {
       expect(pair.pathLength).toBeGreaterThanOrEqual(2);
       expect(pair.pathLength).toBeLessThanOrEqual(MAX_HOPS);
       assertPathIsValid(pair.path, g);
+      // Club-only route must exist for every generated puzzle.
+      expect(
+        findClubOnlyPath(pair.startPlayerId, pair.targetPlayerId, g, MAX_HOPS),
+      ).not.toBeNull();
     }
   });
 
@@ -222,5 +272,41 @@ describe("generateRandomPair", () => {
       ],
     };
     expect(() => generateRandomPair(new AffiliationGraph(data))).toThrow(/no valid pair/);
+  });
+
+  it("rejects NT-only-solvable pairs that lack a club-only path", () => {
+    const data: GraphData = {
+      players: [
+        { id: "A", name: "A", position: "X", dob: null },
+        { id: "B", name: "B", position: "X", dob: null },
+      ],
+      entities: [
+        { id: "NT", name: "Nation", type: "national_team", country: "" },
+        { id: "CA", name: "Club A", type: "club", country: "" },
+        { id: "CB", name: "Club B", type: "club", country: "" },
+      ],
+      affiliations: [
+        { playerId: "A", entityId: "NT", startDate: null, endDate: null },
+        { playerId: "B", entityId: "NT", startDate: null, endDate: null },
+        {
+          playerId: "A",
+          entityId: "CA",
+          startDate: "2010-01-01",
+          endDate: "2012-01-01",
+        },
+        {
+          playerId: "B",
+          entityId: "CB",
+          startDate: "2018-01-01",
+          endDate: "2020-01-01",
+        },
+      ],
+    };
+    const graph = new AffiliationGraph(data);
+    expect(findShortestPath("A", "B", graph, MAX_HOPS)).not.toBeNull();
+    expect(findClubOnlyPath("A", "B", graph, MAX_HOPS)).toBeNull();
+    expect(() =>
+      generateRandomPair(graph, { minHops: 1, maxAttempts: 50 }),
+    ).toThrow(/no valid pair/);
   });
 });

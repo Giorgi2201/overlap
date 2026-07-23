@@ -7,6 +7,7 @@ import type { PuzzlePair } from "../lib/pathfinding";
 
 const LEVEL_STORAGE_KEY = "overlap.level";
 const UNDOS_REMAINING_STORAGE_KEY = "overlap.undosRemaining";
+const NATIONAL_TEAM_HOPS_REMAINING_STORAGE_KEY = "overlap.nationalTeamHopsRemaining";
 const SESSION_STORAGE_KEY = "overlap.session";
 const AT_MENU_STORAGE_KEY = "overlap.atMenu";
 
@@ -14,6 +15,8 @@ const AT_MENU_STORAGE_KEY = "overlap.atMenu";
 export interface ChainNode {
   type: "player" | "entity";
   id: string;
+  /** Set when type === "entity" — needed to refund NT hops on undo. */
+  entityKind?: "club" | "national_team";
 }
 
 /** What the expand panel is currently listing. */
@@ -33,6 +36,8 @@ export interface GameState {
   expanded: ExpandedView | null;
   /** Number of undos remaining for the current run. */
   undosRemaining: number;
+  /** National-team hop budget for the current run (starts at 3). Persisted in localStorage. */
+  nationalTeamHopsRemaining: number;
   /** Number of entity hops in the shortest known path for the current puzzle. */
   shortestPathLength: number;
 }
@@ -40,7 +45,11 @@ export interface GameState {
 export type GameAction =
   | { type: "START_GAME"; pair: PuzzlePair }
   | { type: "EXPAND_PLAYER"; playerId: string }
-  | { type: "SELECT_ENTITY"; entityId: string }
+  | {
+      type: "SELECT_ENTITY";
+      entityId: string;
+      entityType: "club" | "national_team";
+    }
   | { type: "SELECT_PLAYER"; playerId: string }
   | { type: "UNDO" }
   | { type: "RESET" }
@@ -56,6 +65,7 @@ type StoredPlayingSession = {
   chain: ChainNode[];
   expanded: ExpandedView | null;
   undosRemaining: number;
+  nationalTeamHopsRemaining: number;
   shortestPathLength: number;
 };
 
@@ -63,6 +73,7 @@ type StoredAdvanceSession = {
   v: 1;
   kind: "advance";
   undosRemaining: number;
+  nationalTeamHopsRemaining: number;
 };
 
 type StoredSession = StoredPlayingSession | StoredAdvanceSession;
@@ -100,6 +111,28 @@ export function loadPersistedUndosRemaining(): number {
 export function persistUndosRemaining(value: number): void {
   try {
     localStorage.setItem(UNDOS_REMAINING_STORAGE_KEY, String(Math.max(0, Math.floor(value))));
+  } catch {
+    // Ignore quota / private-mode failures — in-memory value still works.
+  }
+}
+
+export function loadPersistedNationalTeamHopsRemaining(): number {
+  try {
+    const raw = localStorage.getItem(NATIONAL_TEAM_HOPS_REMAINING_STORAGE_KEY);
+    if (raw == null) return 3;
+    const n = Number.parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 0 ? n : 3;
+  } catch {
+    return 3;
+  }
+}
+
+export function persistNationalTeamHopsRemaining(value: number): void {
+  try {
+    localStorage.setItem(
+      NATIONAL_TEAM_HOPS_REMAINING_STORAGE_KEY,
+      String(Math.max(0, Math.floor(value))),
+    );
   } catch {
     // Ignore quota / private-mode failures — in-memory value still works.
   }
@@ -145,7 +178,12 @@ export function persistGameSession(state: GameState): void {
       return;
     }
     if (state.phase === "won") {
-      const payload: StoredAdvanceSession = { v: 1, kind: "advance", undosRemaining: state.undosRemaining };
+      const payload: StoredAdvanceSession = {
+        v: 1,
+        kind: "advance",
+        undosRemaining: state.undosRemaining,
+        nationalTeamHopsRemaining: state.nationalTeamHopsRemaining,
+      };
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
       persistAtMenu(false);
       return;
@@ -160,6 +198,7 @@ export function persistGameSession(state: GameState): void {
       chain: state.chain,
       expanded: state.expanded,
       undosRemaining: state.undosRemaining,
+      nationalTeamHopsRemaining: state.nationalTeamHopsRemaining,
       shortestPathLength: state.shortestPathLength,
     };
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
@@ -256,6 +295,7 @@ export function validatePlayingSession(
     chain: data.chain,
     expanded,
     undosRemaining: data.undosRemaining ?? 3,
+    nationalTeamHopsRemaining: data.nationalTeamHopsRemaining ?? loadPersistedNationalTeamHopsRemaining(),
     shortestPathLength: data.shortestPathLength ?? 0,
   };
 }
@@ -295,6 +335,7 @@ export function hydrateGameState(
         chain: [{ type: "player", id: pair.startPlayerId }],
         expanded: null,
         undosRemaining: stored.undosRemaining,
+        nationalTeamHopsRemaining: stored.nationalTeamHopsRemaining ?? 3,
         shortestPathLength: pair.pathLength,
       };
       persistGameSession(state);
@@ -331,6 +372,7 @@ export function createInitialState(): GameState {
     chain: [],
     expanded: null,
     undosRemaining: loadPersistedUndosRemaining(),
+    nationalTeamHopsRemaining: loadPersistedNationalTeamHopsRemaining(),
     shortestPathLength: 0,
   };
 }
@@ -344,8 +386,12 @@ export const initialGameState: GameState = {
   chain: [],
   expanded: null,
   undosRemaining: 3,
+  nationalTeamHopsRemaining: 3,
   shortestPathLength: 0,
 };
+
+/** Storage key exposed for tests to check corruption/absence scenarios. */
+export const NATIONAL_TEAM_HOPS_STORAGE_KEY = NATIONAL_TEAM_HOPS_REMAINING_STORAGE_KEY;
 
 export function currentPlayerId(chain: ChainNode[]): string | null {
   for (let i = chain.length - 1; i >= 0; i--) {
@@ -365,7 +411,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         chain: [{ type: "player", id: action.pair.startPlayerId }],
         expanded: null,
         shortestPathLength: action.pair.pathLength,
-        // undosRemaining carries over between puzzles — do not reset
+        // undosRemaining + nationalTeamHopsRemaining carry over — do not reset
       };
 
     case "EXPAND_PLAYER": {
@@ -381,15 +427,33 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (state.phase !== "playing" || state.expanded?.kind !== "entities") {
         return state;
       }
+      const isNationalTeam = action.entityType === "national_team";
+      if (isNationalTeam && state.nationalTeamHopsRemaining <= 0) {
+        return state;
+      }
       const viaPlayerId = state.expanded.playerId;
+      const nextNationalTeamHops = isNationalTeam
+        ? state.nationalTeamHopsRemaining - 1
+        : state.nationalTeamHopsRemaining;
+      if (isNationalTeam) {
+        persistNationalTeamHopsRemaining(nextNationalTeamHops);
+      }
       return {
         ...state,
-        chain: [...state.chain, { type: "entity", id: action.entityId }],
+        chain: [
+          ...state.chain,
+          {
+            type: "entity",
+            id: action.entityId,
+            entityKind: action.entityType,
+          },
+        ],
         expanded: {
           kind: "teammates",
           entityId: action.entityId,
           viaPlayerId,
         },
+        nationalTeamHopsRemaining: nextNationalTeamHops,
       };
     }
 
@@ -405,9 +469,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         const level = state.level + 1;
         persistLevel(level);
         const playerHops = chain.filter((n) => n.type === "entity").length;
-        const bonus = playerHops <= state.shortestPathLength ? 2 : 1;
-        const undosRemaining = state.undosRemaining + bonus;
+        // Undo economy: +2 optimal / +1 non-optimal (unchanged; uses <=).
+        const undoBonus = playerHops <= state.shortestPathLength ? 2 : 1;
+        const undosRemaining = state.undosRemaining + undoBonus;
         persistUndosRemaining(undosRemaining);
+        // NT hops: +1 only on exact optimal length / +0 otherwise.
+        const nationalTeamHopsRemaining =
+          state.nationalTeamHopsRemaining +
+          (playerHops === state.shortestPathLength ? 1 : 0);
+        persistNationalTeamHopsRemaining(nationalTeamHopsRemaining);
         return {
           ...state,
           chain,
@@ -415,6 +485,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           expanded: null,
           level,
           undosRemaining,
+          nationalTeamHopsRemaining,
         };
       }
       return {
@@ -439,7 +510,20 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             };
       const undosRemaining = state.undosRemaining - 1;
       persistUndosRemaining(undosRemaining);
-      return { ...state, chain, expanded, undosRemaining };
+      const nationalTeamHopsRemaining =
+        removed.type === "entity" && removed.entityKind === "national_team"
+          ? state.nationalTeamHopsRemaining + 1
+          : state.nationalTeamHopsRemaining;
+      if (nationalTeamHopsRemaining !== state.nationalTeamHopsRemaining) {
+        persistNationalTeamHopsRemaining(nationalTeamHopsRemaining);
+      }
+      return {
+        ...state,
+        chain,
+        expanded,
+        undosRemaining,
+        nationalTeamHopsRemaining,
+      };
     }
 
     case "RESET":
@@ -456,6 +540,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case "RESET_PROGRESS": {
       persistLevel(1);
       persistUndosRemaining(3);
+      persistNationalTeamHopsRemaining(3);
       clearGameSession();
       persistAtMenu(false);
       return {
@@ -467,6 +552,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         chain: [],
         expanded: null,
         undosRemaining: 3,
+        nationalTeamHopsRemaining: 3,
       };
     }
 

@@ -1,11 +1,16 @@
 {
-  "rule": "mixed: club dated overlap (>=30d) / NT any shared affiliation",
+  "rule": "mixed (club dated + NT any) + generateRandomPair requires club-only path",
   "rawPairs500": {
     "1": 45,
     "2": 409,
     "3": 46
   },
-  "avgBfsMs": 0.293,
+  "avgBfsMs": 0.342,
+  "clubOnlyRejection": {
+    "mixedReachableIn500": 500,
+    "missingClubOnlyPath": 1,
+    "rateAmongMixedReachable": 0.002
+  },
   "puzzles100_minHops2": {
     "dist": {
       "2": 91,
@@ -13,8 +18,9 @@
     },
     "found": 100,
     "tries": 110,
+    "rejectedNoClubOnly": 0,
     "successRate": 0.9091,
-    "elapsedMs": 27.53189999999995
+    "elapsedMs": 48.95739999999978
   },
   "puzzles100_minHops3": {
     "dist": {
@@ -22,8 +28,9 @@
     },
     "found": 100,
     "tries": 1114,
+    "rejectedNoClubOnly": 0,
     "successRate": 0.0898,
-    "elapsedMs": 306.4585000000002
+    "elapsedMs": 357.68230000000017
   },
   "puzzles100_minHops4": {
     "dist": {
@@ -31,11 +38,22 @@
     },
     "found": 4,
     "tries": 50000,
+    "rejectedNoClubOnly": 0,
     "successRate": 0.0001,
-    "elapsedMs": 13429.6177
+    "elapsedMs": 13176.4613
   },
-  "previousShareAnyEntity": {
-    "rawPairs500": { "1": 70, "2": 424, "3": 6 },
-    "puzzles100_minHops3_successRate": 0.0132
+  "generateRandomPair100_minHops2": {
+    "found": 100,
+    "elapsedMs": 68.7,
+    "avgMsPerPair": 0.69
+  },
+  "previousPrompt18": {
+    "rawPairs500": {
+      "1": 45,
+      "2": 409,
+      "3": 46
+    },
+    "puzzles100_minHops2_successRate": 0.9091,
+    "puzzles100_minHops3_successRate": 0.0898
   }
 }

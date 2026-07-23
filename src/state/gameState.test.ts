@@ -9,10 +9,13 @@ import {
   hydrateGameState,
   initialGameState,
   loadPersistedAtMenu,
+  loadPersistedNationalTeamHopsRemaining,
   loadPersistedUndosRemaining,
+  NATIONAL_TEAM_HOPS_STORAGE_KEY,
   persistAtMenu,
   persistGameSession,
   persistLevel,
+  persistNationalTeamHopsRemaining,
   persistUndosRemaining,
   readStoredSession,
   validatePlayingSession,
@@ -20,6 +23,20 @@ import {
 } from "./gameState";
 
 const g = loadGraph();
+
+function entityTypeOf(entityId: string): "club" | "national_team" {
+  return g.entities.get(entityId)?.type === "national_team"
+    ? "national_team"
+    : "club";
+}
+
+function selectEntity(state: GameState, entityId: string): GameState {
+  return gameReducer(state, {
+    type: "SELECT_ENTITY",
+    entityId,
+    entityType: entityTypeOf(entityId),
+  });
+}
 
 function mulberry32(seed: number): () => number {
   let a = seed;
@@ -47,10 +64,7 @@ describe("gameReducer click flow with real data", () => {
       const { playerId, entityId } = pair.path[i];
       state = gameReducer(state, { type: "EXPAND_PLAYER", playerId });
       expect(state.expanded).toEqual({ kind: "entities", playerId });
-      state = gameReducer(state, {
-        type: "SELECT_ENTITY",
-        entityId: entityId!,
-      });
+      state = selectEntity(state, entityId!);
       expect(state.expanded).toEqual({
         kind: "teammates",
         entityId,
@@ -103,10 +117,7 @@ describe("gameReducer click flow with real data", () => {
     for (let i = 0; i < pair.path.length - 1; i++) {
       const { playerId, entityId } = pair.path[i];
       state = gameReducer(state, { type: "EXPAND_PLAYER", playerId });
-      state = gameReducer(state, {
-        type: "SELECT_ENTITY",
-        entityId: entityId!,
-      });
+      state = selectEntity(state, entityId!);
       state = gameReducer(state, {
         type: "SELECT_PLAYER",
         playerId: pair.path[i + 1].playerId,
@@ -131,10 +142,7 @@ describe("gameReducer click flow with real data", () => {
     for (let i = 0; i < first.path.length - 1; i++) {
       const { playerId, entityId } = first.path[i];
       state = gameReducer(state, { type: "EXPAND_PLAYER", playerId });
-      state = gameReducer(state, {
-        type: "SELECT_ENTITY",
-        entityId: entityId!,
-      });
+      state = selectEntity(state, entityId!);
       state = gameReducer(state, {
         type: "SELECT_PLAYER",
         playerId: first.path[i + 1].playerId,
@@ -180,7 +188,7 @@ describe("gameReducer UNDO", () => {
       type: "EXPAND_PLAYER",
       playerId: pair.startPlayerId,
     });
-    state = gameReducer(state, { type: "SELECT_ENTITY", entityId });
+    state = selectEntity(state, entityId);
     state = gameReducer(state, { type: "UNDO" });
     expect(state.chain).toEqual([{ type: "player", id: pair.startPlayerId }]);
     expect(state.expanded).toEqual({
@@ -198,12 +206,12 @@ describe("gameReducer UNDO", () => {
       type: "EXPAND_PLAYER",
       playerId: pair.startPlayerId,
     });
-    state = gameReducer(state, { type: "SELECT_ENTITY", entityId });
+    state = selectEntity(state, entityId);
     state = gameReducer(state, { type: "SELECT_PLAYER", playerId: midPlayerId });
     state = gameReducer(state, { type: "UNDO" });
     expect(state.chain).toEqual([
       { type: "player", id: pair.startPlayerId },
-      { type: "entity", id: entityId },
+      { type: "entity", id: entityId, entityKind: entityTypeOf(entityId) },
     ]);
     expect(state.expanded).toEqual({
       kind: "teammates",
@@ -221,7 +229,7 @@ describe("gameReducer UNDO", () => {
       type: "EXPAND_PLAYER",
       playerId: pair.startPlayerId,
     });
-    state = gameReducer(state, { type: "SELECT_ENTITY", entityId });
+    state = selectEntity(state, entityId);
     state = gameReducer(state, { type: "SELECT_PLAYER", playerId: midPlayerId });
 
     state = gameReducer(state, { type: "UNDO" });
@@ -260,7 +268,7 @@ describe("gameReducer undosRemaining", () => {
       type: "EXPAND_PLAYER",
       playerId: pair.startPlayerId,
     });
-    state = gameReducer(state, { type: "SELECT_ENTITY", entityId });
+    state = selectEntity(state, entityId);
     expect(state.undosRemaining).toBe(3);
 
     state = gameReducer(state, { type: "UNDO" });
@@ -280,7 +288,7 @@ describe("gameReducer undosRemaining", () => {
       type: "EXPAND_PLAYER",
       playerId: pair.startPlayerId,
     });
-    state = gameReducer(state, { type: "SELECT_ENTITY", entityId });
+    state = selectEntity(state, entityId);
     const before = state;
 
     state = gameReducer(state, { type: "UNDO" });
@@ -298,10 +306,7 @@ describe("gameReducer undosRemaining", () => {
     for (let i = 0; i < pair.path.length - 1; i++) {
       const { playerId, entityId } = pair.path[i];
       state = gameReducer(state, { type: "EXPAND_PLAYER", playerId });
-      state = gameReducer(state, {
-        type: "SELECT_ENTITY",
-        entityId: entityId!,
-      });
+      state = selectEntity(state, entityId!);
       state = gameReducer(state, {
         type: "SELECT_PLAYER",
         playerId: pair.path[i + 1].playerId,
@@ -339,6 +344,7 @@ describe("gameReducer undosRemaining", () => {
         viaPlayerId: secondLast.playerId,
       },
       undosRemaining: 1,
+      nationalTeamHopsRemaining: 3,
       shortestPathLength: 0, // shorter than the actual path, making this non-optimal
     };
 
@@ -378,7 +384,7 @@ describe("gameReducer undosRemaining", () => {
       type: "EXPAND_PLAYER",
       playerId: pair.startPlayerId,
     });
-    state = gameReducer(state, { type: "SELECT_ENTITY", entityId });
+    state = selectEntity(state, entityId);
     expect(state.undosRemaining).toBe(1);
 
     // Use the last undo
@@ -387,7 +393,7 @@ describe("gameReducer undosRemaining", () => {
     expect(state.chain).toEqual([{ type: "player", id: pair.startPlayerId }]);
 
     // Followed by a move & another UNDO attempt — no-op
-    state = gameReducer(state, { type: "SELECT_ENTITY", entityId });
+    state = selectEntity(state, entityId);
     const before = state;
     state = gameReducer(state, { type: "UNDO" });
     expect(state).toEqual(before);
@@ -432,7 +438,7 @@ describe("session persistence", () => {
       type: "EXPAND_PLAYER",
       playerId: pair.startPlayerId,
     });
-    state = gameReducer(state, { type: "SELECT_ENTITY", entityId });
+    state = selectEntity(state, entityId);
     state = gameReducer(state, {
       type: "SELECT_PLAYER",
       playerId: midPlayerId,
@@ -460,10 +466,7 @@ describe("session persistence", () => {
     for (let i = 0; i < pair.path.length - 1; i++) {
       const { playerId, entityId } = pair.path[i];
       state = gameReducer(state, { type: "EXPAND_PLAYER", playerId });
-      state = gameReducer(state, {
-        type: "SELECT_ENTITY",
-        entityId: entityId!,
-      });
+      state = selectEntity(state, entityId!);
       state = gameReducer(state, {
         type: "SELECT_PLAYER",
         playerId: pair.path[i + 1].playerId,
@@ -561,7 +564,7 @@ describe("session persistence", () => {
       type: "EXPAND_PLAYER",
       playerId: pair.startPlayerId,
     });
-    state = gameReducer(state, { type: "SELECT_ENTITY", entityId });
+    state = selectEntity(state, entityId);
     const savedChain = state.chain;
     // Save the playing session (simulating what the useEffect does during play)
     persistGameSession(state);
@@ -608,7 +611,7 @@ describe("session persistence", () => {
     ]);
   });
 
-  it("simulates the in-app Continue flow — restores puzzle without page refresh", () => {
+  it("simulates the in-app Continue flow — restores puzzle without page refresh, including nationalTeamHopsRemaining", () => {
     // This test directly exercises the readStoredSession → validatePlayingSession →
     // RESTORE_SESSION dispatch path that the "Continue" button uses, with zero
     // calls to hydrateGameState (i.e. no page refresh involved).
@@ -623,9 +626,11 @@ describe("session persistence", () => {
       type: "EXPAND_PLAYER",
       playerId: pair.startPlayerId,
     });
-    state = gameReducer(state, { type: "SELECT_ENTITY", entityId });
+    state = selectEntity(state, entityId);
     const midPlayerId = pair.path[1].playerId;
     state = gameReducer(state, { type: "SELECT_PLAYER", playerId: midPlayerId });
+    // Set a non-default value so a false pass via default-fallback can't hide a bug.
+    state = { ...state, nationalTeamHopsRemaining: 1 };
     // Save to localStorage (as useEffect does during play)
     persistGameSession(state);
     const savedChain = state.chain;
@@ -651,6 +656,8 @@ describe("session persistence", () => {
     expect(state.targetPlayerId).toBe(pair.targetPlayerId);
     expect(state.chain).toEqual(savedChain);
     expect(state.expanded).toEqual(savedExpanded);
+    // Explicit value check — NOT just "code path exercised".
+    expect(state.nationalTeamHopsRemaining).toBe(1);
   });
 
   it("Continue flow with no saved session still generates a fresh puzzle", () => {
@@ -697,7 +704,7 @@ describe("session persistence", () => {
       expect(stored!.kind).toBe("playing");
     });
 
-    it("Scenario 7: Refresh mid-puzzle (no Home) auto-restores gameplay", () => {
+    it("Scenario 7: Refresh mid-puzzle (no Home) auto-restores gameplay, including nationalTeamHopsRemaining", () => {
       // Play puzzle, DO NOT go Home, refresh — hydrateGameState auto-restores
       const pair = generateRandomPair(g, { random: mulberry32(61), level: 2 });
       let state = gameReducer(
@@ -708,6 +715,8 @@ describe("session persistence", () => {
         type: "EXPAND_PLAYER",
         playerId: pair.startPlayerId,
       });
+      // Set a non-default value so a false pass via default-fallback can't hide a bug.
+      state = { ...state, nationalTeamHopsRemaining: 1 };
       persistGameSession(state);
       expect(loadPersistedAtMenu()).toBe(false);
 
@@ -718,6 +727,8 @@ describe("session persistence", () => {
       expect(hydrated.phase).toBe("playing");
       expect(hydrated.startPlayerId).toBe(pair.startPlayerId);
       expect(hydrated.chain).toEqual(state.chain);
+      // Explicit value check — NOT just "code path exercised".
+      expect(hydrated.nationalTeamHopsRemaining).toBe(1);
     });
 
     it("Scenario 8: Home + Continue (no refresh) still restores puzzle", () => {
@@ -846,7 +857,7 @@ describe("undosRemaining localStorage persistence", () => {
       type: "EXPAND_PLAYER",
       playerId: pair.startPlayerId,
     });
-    state = gameReducer(state, { type: "SELECT_ENTITY", entityId });
+    state = selectEntity(state, entityId);
     // Before UNDO: stored value is 3
     expect(loadPersistedUndosRemaining()).toBe(3);
 
@@ -865,10 +876,7 @@ describe("undosRemaining localStorage persistence", () => {
     for (let i = 0; i < pair.path.length - 1; i++) {
       const { playerId, entityId } = pair.path[i];
       state = gameReducer(state, { type: "EXPAND_PLAYER", playerId });
-      state = gameReducer(state, {
-        type: "SELECT_ENTITY",
-        entityId: entityId!,
-      });
+      state = selectEntity(state, entityId!);
       state = gameReducer(state, {
         type: "SELECT_PLAYER",
         playerId: pair.path[i + 1].playerId,
@@ -892,5 +900,427 @@ describe("undosRemaining localStorage persistence", () => {
   it("createInitialState loads persisted undosRemaining", () => {
     persistUndosRemaining(5);
     expect(createInitialState().undosRemaining).toBe(5);
+  });
+});
+
+describe("nationalTeamHopsRemaining localStorage persistence", () => {
+  const memory = new Map<string, string>();
+
+  beforeEach(() => {
+    memory.clear();
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (key: string) => memory.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          memory.set(key, String(value));
+        },
+        removeItem: (key: string) => {
+          memory.delete(key);
+        },
+        clear: () => memory.clear(),
+      },
+    });
+  });
+
+  afterEach(() => {
+    memory.clear();
+  });
+
+  it("persists and loads nationalTeamHopsRemaining round-trip", () => {
+    persistNationalTeamHopsRemaining(7);
+    expect(loadPersistedNationalTeamHopsRemaining()).toBe(7);
+  });
+
+  it("defaults to 3 when no value is stored", () => {
+    expect(loadPersistedNationalTeamHopsRemaining()).toBe(3);
+  });
+
+  it("defaults to 3 when stored value is corrupt", () => {
+    memory.set(NATIONAL_TEAM_HOPS_STORAGE_KEY, "not-a-number");
+    expect(loadPersistedNationalTeamHopsRemaining()).toBe(3);
+  });
+
+  it("defaults to 3 when stored value is negative", () => {
+    memory.set(NATIONAL_TEAM_HOPS_STORAGE_KEY, "-1");
+    expect(loadPersistedNationalTeamHopsRemaining()).toBe(3);
+  });
+
+  it("persists nationalTeamHopsRemaining on NT-entity SELECT_ENTITY action", () => {
+    const NORWAY = "3440";
+    const HAALAND = "418560";
+    const ODEGAARD = "316264";
+    function openEntities(
+      playerId: string,
+      targetPlayerId: string,
+      extras: Record<string, unknown> = {},
+    ): GameState {
+      return {
+        ...initialGameState,
+        phase: "playing",
+        startPlayerId: playerId,
+        targetPlayerId,
+        chain: [{ type: "player", id: playerId }],
+        expanded: { kind: "entities", playerId },
+        shortestPathLength: 1,
+        undosRemaining: 3,
+        nationalTeamHopsRemaining: 3,
+        ...extras,
+      } as GameState;
+    }
+    let state = openEntities(HAALAND, ODEGAARD, { nationalTeamHopsRemaining: 3 });
+    // Before action: stored value is 3
+    expect(loadPersistedNationalTeamHopsRemaining()).toBe(3);
+
+    state = gameReducer(state, {
+      type: "SELECT_ENTITY",
+      entityId: NORWAY,
+      entityType: "national_team",
+    });
+    // After NT hop spend: stored value decreased to 2
+    expect(loadPersistedNationalTeamHopsRemaining()).toBe(2);
+    expect(state.nationalTeamHopsRemaining).toBe(2);
+  });
+
+  it("persists nationalTeamHopsRemaining on optimal win (increment +1)", () => {
+    const MESSI = "28003";
+    const SUAREZ = "44352";
+    const BARCELONA = "131";
+    let state: GameState = {
+      ...initialGameState,
+      phase: "playing",
+      startPlayerId: MESSI,
+      targetPlayerId: SUAREZ,
+      chain: [{ type: "player", id: MESSI }],
+      expanded: { kind: "entities", playerId: MESSI },
+      shortestPathLength: 1,
+      undosRemaining: 1,
+      nationalTeamHopsRemaining: 2,
+    };
+    state = gameReducer(state, {
+      type: "SELECT_ENTITY",
+      entityId: BARCELONA,
+      entityType: "club",
+    });
+    state = gameReducer(state, {
+      type: "SELECT_PLAYER",
+      playerId: SUAREZ,
+    });
+    expect(state.phase).toBe("won");
+    // Optimal win: +1 NT hop, so stored value = 2 + 1 = 3
+    expect(loadPersistedNationalTeamHopsRemaining()).toBe(3);
+    expect(state.nationalTeamHopsRemaining).toBe(3);
+  });
+
+  it("persists nationalTeamHopsRemaining on UNDO refund (NT hop restored)", () => {
+    const NORWAY = "3440";
+    const HAALAND = "418560";
+    const ODEGAARD = "316264";
+    let state: GameState = {
+      ...initialGameState,
+      phase: "playing",
+      startPlayerId: HAALAND,
+      targetPlayerId: ODEGAARD,
+      chain: [{ type: "player", id: HAALAND }],
+      expanded: { kind: "entities", playerId: HAALAND },
+      shortestPathLength: 1,
+      undosRemaining: 3,
+      nationalTeamHopsRemaining: 2,
+    };
+    state = gameReducer(state, {
+      type: "SELECT_ENTITY",
+      entityId: NORWAY,
+      entityType: "national_team",
+    });
+    expect(state.nationalTeamHopsRemaining).toBe(1);
+    expect(loadPersistedNationalTeamHopsRemaining()).toBe(1);
+
+    // UNDO — should refund the NT hop
+    state = gameReducer(state, { type: "UNDO" });
+    expect(state.nationalTeamHopsRemaining).toBe(2);
+    expect(loadPersistedNationalTeamHopsRemaining()).toBe(2);
+  });
+
+  it("persists nationalTeamHopsRemaining on non-NT undo (no change to persisted value)", () => {
+    // Pre-seed localStorage so the persisted value is 2 before any reducer action.
+    persistNationalTeamHopsRemaining(2);
+    expect(loadPersistedNationalTeamHopsRemaining()).toBe(2);
+
+    const MESSI = "28003";
+    const SUAREZ = "44352";
+    const BARCELONA = "131";
+    let state: GameState = {
+      ...initialGameState,
+      phase: "playing",
+      startPlayerId: MESSI,
+      targetPlayerId: SUAREZ,
+      chain: [{ type: "player", id: MESSI }],
+      expanded: { kind: "entities", playerId: MESSI },
+      shortestPathLength: 1,
+      undosRemaining: 3,
+      nationalTeamHopsRemaining: 2,
+    };
+    state = gameReducer(state, {
+      type: "SELECT_ENTITY",
+      entityId: BARCELONA,
+      entityType: "club",
+    });
+    expect(loadPersistedNationalTeamHopsRemaining()).toBe(2); // unchanged
+
+    state = gameReducer(state, { type: "UNDO" });
+    expect(state.nationalTeamHopsRemaining).toBe(2);
+    expect(loadPersistedNationalTeamHopsRemaining()).toBe(2); // still unchanged
+  });
+
+  it("RESET_PROGRESS resets nationalTeamHopsRemaining to 3 in state and localStorage", () => {
+    persistNationalTeamHopsRemaining(10);
+    let state: GameState = { ...initialGameState, nationalTeamHopsRemaining: 10 };
+
+    state = gameReducer(state, { type: "RESET_PROGRESS" });
+    expect(state.nationalTeamHopsRemaining).toBe(3);
+    expect(loadPersistedNationalTeamHopsRemaining()).toBe(3);
+  });
+
+  it("createInitialState loads persisted nationalTeamHopsRemaining", () => {
+    persistNationalTeamHopsRemaining(5);
+    expect(createInitialState().nationalTeamHopsRemaining).toBe(5);
+  });
+});
+
+describe("gameReducer nationalTeamHopsRemaining", () => {
+  const NORWAY = "3440";
+  const HAALAND = "418560";
+  const ODEGAARD = "316264";
+  const BARCELONA = "131";
+  const MESSI = "28003";
+  const SUAREZ = "44352";
+
+  function openEntities(
+    playerId: string,
+    targetPlayerId: string,
+    extras: Partial<GameState> = {},
+  ): GameState {
+    return {
+      ...initialGameState,
+      phase: "playing",
+      startPlayerId: playerId,
+      targetPlayerId,
+      chain: [{ type: "player", id: playerId }],
+      expanded: { kind: "entities", playerId },
+      shortestPathLength: 1,
+      ...extras,
+    };
+  }
+
+  it("starts with nationalTeamHopsRemaining = 3 on a fresh run", () => {
+    expect(createInitialState().nationalTeamHopsRemaining).toBe(3);
+    expect(initialGameState.nationalTeamHopsRemaining).toBe(3);
+    const pair = generateRandomPair(g, { random: mulberry32(70) });
+    const state = gameReducer(initialGameState, { type: "START_GAME", pair });
+    expect(state.nationalTeamHopsRemaining).toBe(3);
+  });
+
+  it("selecting a national-team entity when balance > 0 succeeds and decrements by 1", () => {
+    let state = openEntities(HAALAND, ODEGAARD, {
+      nationalTeamHopsRemaining: 3,
+      undosRemaining: 3,
+    });
+    expect(state.undosRemaining).toBe(3);
+
+    state = gameReducer(state, {
+      type: "SELECT_ENTITY",
+      entityId: NORWAY,
+      entityType: "national_team",
+    });
+    expect(state.chain).toEqual([
+      { type: "player", id: HAALAND },
+      { type: "entity", id: NORWAY, entityKind: "national_team" },
+    ]);
+    expect(state.nationalTeamHopsRemaining).toBe(2);
+    // Undo budget untouched
+    expect(state.undosRemaining).toBe(3);
+  });
+
+  it("selecting a national-team entity when balance = 0 is rejected", () => {
+    const before = openEntities(HAALAND, ODEGAARD, {
+      nationalTeamHopsRemaining: 0,
+      undosRemaining: 3,
+    });
+    const state = gameReducer(before, {
+      type: "SELECT_ENTITY",
+      entityId: NORWAY,
+      entityType: "national_team",
+    });
+    expect(state).toEqual(before);
+    expect(state.chain).toHaveLength(1);
+    expect(state.nationalTeamHopsRemaining).toBe(0);
+    expect(state.undosRemaining).toBe(3);
+  });
+
+  it("selecting a club entity never affects nationalTeamHopsRemaining", () => {
+    let state = openEntities(MESSI, SUAREZ, {
+      nationalTeamHopsRemaining: 2,
+      undosRemaining: 3,
+    });
+    state = gameReducer(state, {
+      type: "SELECT_ENTITY",
+      entityId: BARCELONA,
+      entityType: "club",
+    });
+    expect(state.nationalTeamHopsRemaining).toBe(2);
+    expect(state.undosRemaining).toBe(3);
+    expect(state.chain[1]).toEqual({
+      type: "entity",
+      id: BARCELONA,
+      entityKind: "club",
+    });
+  });
+
+  it("undoing a national-team selection refunds +1 to nationalTeamHopsRemaining", () => {
+    let state = openEntities(HAALAND, ODEGAARD, {
+      nationalTeamHopsRemaining: 2,
+      undosRemaining: 3,
+    });
+    state = gameReducer(state, {
+      type: "SELECT_ENTITY",
+      entityId: NORWAY,
+      entityType: "national_team",
+    });
+    expect(state.nationalTeamHopsRemaining).toBe(1);
+
+    state = gameReducer(state, { type: "UNDO" });
+    expect(state.nationalTeamHopsRemaining).toBe(2);
+    expect(state.undosRemaining).toBe(2); // undo still costs an undo
+    expect(state.chain).toEqual([{ type: "player", id: HAALAND }]);
+  });
+
+  it("undoing a club selection does NOT affect nationalTeamHopsRemaining", () => {
+    let state = openEntities(MESSI, SUAREZ, {
+      nationalTeamHopsRemaining: 2,
+      undosRemaining: 3,
+    });
+    state = gameReducer(state, {
+      type: "SELECT_ENTITY",
+      entityId: BARCELONA,
+      entityType: "club",
+    });
+    state = gameReducer(state, { type: "UNDO" });
+    expect(state.nationalTeamHopsRemaining).toBe(2);
+    expect(state.undosRemaining).toBe(2);
+  });
+
+  it("winning with an optimal-length chain grants +1 nationalTeamHopsRemaining", () => {
+    let state = openEntities(MESSI, SUAREZ, {
+      nationalTeamHopsRemaining: 2,
+      undosRemaining: 1,
+      shortestPathLength: 1,
+    });
+    state = gameReducer(state, {
+      type: "SELECT_ENTITY",
+      entityId: BARCELONA,
+      entityType: "club",
+    });
+    state = gameReducer(state, {
+      type: "SELECT_PLAYER",
+      playerId: SUAREZ,
+    });
+    expect(state.phase).toBe("won");
+    expect(state.nationalTeamHopsRemaining).toBe(3); // +1 optimal
+    expect(state.undosRemaining).toBe(3); // +2 optimal (independent)
+  });
+
+  it("winning with a non-optimal-length chain grants +0 nationalTeamHopsRemaining", () => {
+    const pair = generateRandomPair(g, { random: mulberry32(71), level: 1 });
+    const lastIdx = pair.path.length - 1;
+    const secondLast = pair.path[lastIdx - 1];
+    const entityId = secondLast.entityId!;
+    const chain: import("./gameState").ChainNode[] = [];
+    for (const step of pair.path.slice(0, lastIdx)) {
+      chain.push({ type: "player", id: step.playerId });
+      if (step.entityId) {
+        chain.push({
+          type: "entity",
+          id: step.entityId,
+          entityKind: entityTypeOf(step.entityId),
+        });
+      }
+    }
+    chain.push({ type: "player", id: secondLast.playerId });
+    chain.push({
+      type: "entity",
+      id: entityId,
+      entityKind: entityTypeOf(entityId),
+    });
+
+    const preWinState: GameState = {
+      phase: "playing",
+      level: 1,
+      startPlayerId: pair.startPlayerId,
+      targetPlayerId: pair.targetPlayerId,
+      chain,
+      expanded: {
+        kind: "teammates",
+        entityId,
+        viaPlayerId: secondLast.playerId,
+      },
+      undosRemaining: 1,
+      nationalTeamHopsRemaining: 2,
+      shortestPathLength: 0,
+    };
+
+    const state = gameReducer(preWinState, {
+      type: "SELECT_PLAYER",
+      playerId: pair.targetPlayerId,
+    });
+    expect(state.phase).toBe("won");
+    expect(state.nationalTeamHopsRemaining).toBe(2); // +0
+    expect(state.undosRemaining).toBe(2); // +1 non-optimal undo reward
+  });
+
+  it("START_GAME does NOT reset nationalTeamHopsRemaining", () => {
+    const first = generateRandomPair(g, { random: mulberry32(72) });
+    let state = gameReducer(
+      { ...initialGameState, nationalTeamHopsRemaining: 1 },
+      { type: "START_GAME", pair: first },
+    );
+    expect(state.nationalTeamHopsRemaining).toBe(1);
+
+    const second = generateRandomPair(g, { random: mulberry32(73) });
+    state = gameReducer(state, { type: "START_GAME", pair: second });
+    expect(state.nationalTeamHopsRemaining).toBe(1);
+  });
+
+  it("undosRemaining and nationalTeamHopsRemaining stay independent", () => {
+    let state = openEntities(HAALAND, ODEGAARD, {
+      nationalTeamHopsRemaining: 3,
+      undosRemaining: 3,
+    });
+    // Spend an NT hop
+    state = gameReducer(state, {
+      type: "SELECT_ENTITY",
+      entityId: NORWAY,
+      entityType: "national_team",
+    });
+    expect(state.nationalTeamHopsRemaining).toBe(2);
+    expect(state.undosRemaining).toBe(3);
+
+    // Spend an undo (refunds NT hop)
+    state = gameReducer(state, { type: "UNDO" });
+    expect(state.nationalTeamHopsRemaining).toBe(3);
+    expect(state.undosRemaining).toBe(2);
+
+    // Club select + undo: only undos change
+    state = openEntities(MESSI, SUAREZ, {
+      nationalTeamHopsRemaining: state.nationalTeamHopsRemaining,
+      undosRemaining: state.undosRemaining,
+    });
+    state = gameReducer(state, {
+      type: "SELECT_ENTITY",
+      entityId: BARCELONA,
+      entityType: "club",
+    });
+    state = gameReducer(state, { type: "UNDO" });
+    expect(state.nationalTeamHopsRemaining).toBe(3);
+    expect(state.undosRemaining).toBe(1);
   });
 });

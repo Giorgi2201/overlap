@@ -163,12 +163,13 @@ describe("options live search", () => {
     const raw = getTeammateOptions(g, MESSI, BARCELONA, TARGET, chain);
     expect(raw.length).toBeGreaterThanOrEqual(OPTIONS_SEARCH_THRESHOLD);
 
-    const cards: OptionCard[] = raw.map(({ player, isDeadEnd }, i) => ({
+    const cards: OptionCard[] = raw.map(({ player, isDeadEnd, reachability }, i) => ({
       id: player.id,
       label: player.name,
       sublabel: player.position,
       kind: "player" as const,
       isDeadEnd: isDeadEnd || i === 0,
+      reachability: i === 0 ? "true_dead_end" : (reachability ?? "viable"),
     }));
 
     const deadSample = cards.find((c) => c.isDeadEnd)!;

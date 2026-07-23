@@ -195,7 +195,8 @@ export function GameScreen({
         playerId,
         state.targetPlayerId,
         state.chain,
-      ).map(({ entity, isDeadEnd }) => {
+        state.nationalTeamHopsRemaining,
+      ).map(({ entity, isDeadEnd, reachability }) => {
         const aff = graph
           .getAffiliationsForPlayer(playerId)
           .find((a) => a.entityId === entity.id);
@@ -210,6 +211,7 @@ export function GameScreen({
               ? ("national_team" as const)
               : ("club" as const),
           isDeadEnd,
+          reachability,
         };
       });
     }
@@ -219,19 +221,25 @@ export function GameScreen({
       state.expanded.entityId,
       state.targetPlayerId,
       state.chain,
-    ).map(({ player, isDeadEnd }) => ({
+      state.nationalTeamHopsRemaining,
+    ).map(({ player, isDeadEnd, reachability }) => ({
       id: player.id,
       label: player.name,
       sublabel: player.position,
       kind: "player" as const,
       isDeadEnd,
+      reachability,
     }));
   }, [graph, state.expanded, state.targetPlayerId, state.chain, won]);
 
   const onSelectOption = (id: string) => {
     if (!state.expanded) return;
     if (state.expanded.kind === "entities") {
-      dispatch({ type: "SELECT_ENTITY", entityId: id });
+      const entityType =
+        graph.entities.get(id)?.type === "national_team"
+          ? ("national_team" as const)
+          : ("club" as const);
+      dispatch({ type: "SELECT_ENTITY", entityId: id, entityType });
     } else {
       dispatch({ type: "SELECT_PLAYER", playerId: id });
     }
@@ -278,6 +286,11 @@ export function GameScreen({
             <span className={styles.levelPill}>
               <span className={styles.levelKey}>Level</span>
               <span className={styles.levelVal}>{state.level}</span>
+            </span>
+            <span className={styles.ntHopPill}>
+              <span className={styles.ntHopDiamond} aria-hidden="true" />
+              <span className={styles.ntHopKey}>NT</span>
+              <span className={styles.ntHopCount}>{state.nationalTeamHopsRemaining}</span>
             </span>
             <span className={styles.hops}>
               {hopCount} {hopCount === 1 ? "hop" : "hops"}

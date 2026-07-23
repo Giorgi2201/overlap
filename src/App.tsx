@@ -46,6 +46,7 @@ function App() {
           chain: [{ type: "player", id: pair.startPlayerId }],
           expanded: null,
           undosRemaining: stored.undosRemaining,
+          nationalTeamHopsRemaining: state.nationalTeamHopsRemaining,
           shortestPathLength: pair.pathLength,
         };
         persistGameSession(advanceState);
